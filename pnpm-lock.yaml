@@ -20,9 +20,6 @@ importers:
         specifier: ^19
         version: 19.2.8(react@19.2.8)
     devDependencies:
-      '@playwright/test':
-        specifier: ^1.55.0
-        version: 1.62.1
       '@types/node':
         specifier: ^20
         version: 20.19.43
@@ -1861,6 +1858,7 @@ snapshots:
   '@playwright/test@1.62.1':
     dependencies:
       playwright: 1.62.1
+    optional: true
 
   '@rtsao/scc@1.1.0': {}
 
@@ -3049,13 +3047,15 @@ snapshots:
 
   picomatch@4.0.5: {}
 
-  playwright-core@1.62.1: {}
+  playwright-core@1.62.1:
+    optional: true
 
   playwright@1.62.1:
     dependencies:
       playwright-core: 1.62.1
     optionalDependencies:
       fsevents: 2.3.2
+    optional: true
 
   possible-typed-array-names@1.1.0: {}
 

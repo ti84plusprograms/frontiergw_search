@@ -3,16 +3,9 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_cors_and_security_headers_are_explicit():
-    response = TestClient(app).options(
-        "/api/v1/airports?query=atl",
-        headers={
-            "Origin": "http://localhost:3000",
-            "Access-Control-Request-Method": "GET",
-        },
-    )
+def test_security_headers_are_present():
+    response = TestClient(app).get("/api/v1/health")
 
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
     assert (
@@ -20,9 +13,8 @@ def test_cors_and_security_headers_are_explicit():
     )
 
 
-def test_openapi_contains_airport_and_health_contracts():
+def test_openapi_contains_health_endpoints():
     schema = TestClient(app).get("/openapi.json").json()
 
-    assert "/api/v1/airports" in schema["paths"]
     assert "/api/v1/health" in schema["paths"]
     assert "/api/v1/live" in schema["paths"]

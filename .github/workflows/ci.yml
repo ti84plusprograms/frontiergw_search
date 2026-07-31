@@ -39,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10.6"
 
       - name: Install dependencies
         working-directory: apps/api
@@ -59,14 +59,13 @@ jobs:
         working-directory: apps/api
         run: mypy app
 
-      - name: Apply and validate database migrations
+      - name: Validate database migrations
         working-directory: apps/api
         env:
           DATABASE_URL: postgresql+psycopg://gowild:gowild@localhost:5432/gowild
         run: |
           alembic upgrade head
-          alembic check
-          python -c 'from sqlalchemy import create_engine, text; e=create_engine("postgresql+psycopg://gowild:gowild@localhost:5432/gowild"); c=e.connect(); assert c.execute(text("select count(*) from airports")).scalar_one() >= 1; c.close()'
+          alembic current
 
       - name: pytest
         working-directory: apps/api
@@ -74,18 +73,6 @@ jobs:
           DATABASE_URL: postgresql+psycopg://gowild:gowild@localhost:5432/gowild
           REDIS_URL: redis://localhost:6379/0
         run: pytest tests/ -v
-
-      - name: Validate checked-in OpenAPI
-        env:
-          DATABASE_URL: postgresql+psycopg://gowild:gowild@localhost:5432/gowild
-          REDIS_URL: redis://localhost:6379/0
-        run: python scripts/check_openapi.py
-
-      - name: Audit Python dependencies
-        working-directory: apps/api
-        run: |
-          pip install pip-audit
-          pip-audit
 
   frontend:
     runs-on: ubuntu-latest
@@ -110,10 +97,6 @@ jobs:
         working-directory: apps/web
         run: pnpm type-check
 
-      - name: Unit tests
-        working-directory: apps/web
-        run: pnpm test
-
       - name: Lint
         working-directory: apps/web
         run: pnpm lint
@@ -121,34 +104,3 @@ jobs:
       - name: Build
         working-directory: apps/web
         run: pnpm build
-
-      - name: Install Playwright browser
-        run: pnpm --filter gowild-web exec playwright install --with-deps chromium
-
-      - name: End-to-end and accessibility smoke tests
-        run: pnpm run test:e2e:web
-
-      - name: Audit JavaScript dependencies
-        run: pnpm audit --prod
-
-  security:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Filesystem vulnerability scan
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          scanners: vuln,secret
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true

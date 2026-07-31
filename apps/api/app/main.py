@@ -4,7 +4,6 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.api.airports import router as airports_router
 from app.api.health import router as health_router
 from app.core.config import settings
 
@@ -37,4 +36,3 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(health_router, prefix="/api/v1")
-app.include_router(airports_router, prefix="/api/v1")
