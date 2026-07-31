@@ -47,7 +47,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("idx_routes_destination", "routes", ["destination_code"])
-    op.create_index("idx_routes_origin_dates", "routes", ["origin_code", "effective_start", "effective_end"])
+    op.create_index(
+        "idx_routes_origin_dates", "routes", ["origin_code", "effective_start", "effective_end"]
+    )
 
     op.create_table(
         "scheduled_flights",
@@ -76,7 +78,9 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.CheckConstraint("arrival_day_offset >= 0 AND arrival_day_offset <= 2", name="valid_arrival_day_offset"),
+        sa.CheckConstraint(
+            "arrival_day_offset >= 0 AND arrival_day_offset <= 2", name="valid_arrival_day_offset"
+        ),
         sa.CheckConstraint("origin_code != destination_code", name="flights_no_self_loop"),
         sa.ForeignKeyConstraint(["destination_code"], ["airports.code"]),
         sa.ForeignKeyConstraint(["origin_code"], ["airports.code"]),
@@ -85,7 +89,11 @@ def upgrade() -> None:
     )
     op.create_index("idx_flights_destination", "scheduled_flights", ["destination_code"])
     op.create_index("idx_flights_number", "scheduled_flights", ["flight_number"])
-    op.create_index("idx_flights_origin_effective", "scheduled_flights", ["origin_code", "effective_start", "effective_end"])
+    op.create_index(
+        "idx_flights_origin_effective",
+        "scheduled_flights",
+        ["origin_code", "effective_start", "effective_end"],
+    )
 
 
 def downgrade() -> None:

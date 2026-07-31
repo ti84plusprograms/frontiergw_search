@@ -56,9 +56,7 @@ class StaticCsvScheduleProvider:
                     )
                     records.append(record)
                 except (KeyError, ValueError) as e:
-                    raise ValueError(
-                        f"Invalid row {row_num} in {self.file_path}: {e}"
-                    ) from e
+                    raise ValueError(f"Invalid row {row_num} in {self.file_path}: {e}") from e
 
         return ScheduleImportBatch(
             records=records,
