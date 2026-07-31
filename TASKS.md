@@ -25,12 +25,12 @@
 
 | ID | Task | Owner | Status | Dependencies |
 |---|---|---|---|---|
-| DAT-001 | Implement airport schema and seed import | Unassigned | NOT STARTED | FND-005 |
-| DAT-002 | Implement data-source schema | Unassigned | NOT STARTED | FND-005 |
-| DAT-003 | Implement route and scheduled-flight schemas | Unassigned | NOT STARTED | DAT-001, DAT-002 |
-| DAT-004 | Implement static schedule-provider interface | Unassigned | NOT STARTED | DAT-003 |
-| DAT-005 | Implement atomic schedule import | Unassigned | NOT STARTED | DAT-004 |
-| DAT-006 | Implement schedule quality checks | Unassigned | NOT STARTED | DAT-005 |
+| DAT-001 | Implement airport schema and seed import | Claude | COMPLETE | FND-005 |
+| DAT-002 | Implement data-source schema | Claude | COMPLETE | FND-005 |
+| DAT-003 | Implement route and scheduled-flight schemas | Claude | COMPLETE | DAT-001, DAT-002 |
+| DAT-004 | Implement static schedule-provider interface | Claude | COMPLETE | DAT-003 |
+| DAT-005 | Implement atomic schedule import | Claude | COMPLETE | DAT-004 |
+| DAT-006 | Implement schedule quality checks | Claude | COMPLETE | DAT-005 |
 
 ## Phase 3 — Search engine
 
