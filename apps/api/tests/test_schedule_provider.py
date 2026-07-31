@@ -1,5 +1,7 @@
 """Test schedule provider implementations."""
 
+import asyncio
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -12,7 +14,7 @@ def test_static_csv_provider_reads_fixture():
     fixture_path = Path(__file__).parent.parent / "data" / "fixtures" / "sample_schedule.csv"
     provider = StaticCsvScheduleProvider(fixture_path)
 
-    batch = provider.fetch_schedule()
+    batch = asyncio.run(provider.fetch_schedule(date.min, date.max))
 
     assert batch.source_name == "static_csv"
     assert batch.source_version == "sample_schedule.csv"
@@ -28,7 +30,7 @@ def test_static_csv_provider_normalizes_codes():
     fixture_path = Path(__file__).parent.parent / "data" / "fixtures" / "sample_schedule.csv"
     provider = StaticCsvScheduleProvider(fixture_path)
 
-    batch = provider.fetch_schedule()
+    batch = asyncio.run(provider.fetch_schedule(date.min, date.max))
 
     # All codes should be uppercase (they are in the fixture)
     for record in batch.records:
@@ -43,4 +45,4 @@ def test_static_csv_provider_file_not_found():
     provider = StaticCsvScheduleProvider("/nonexistent/file.csv")
 
     with pytest.raises(FileNotFoundError):
-        provider.fetch_schedule()
+        asyncio.run(provider.fetch_schedule(date.min, date.max))

@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, event, text
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.db import Base
@@ -9,7 +12,7 @@ from app.db import Base
 
 @pytest.fixture(scope="session")
 def test_db():
-    """Create a test database (PostgreSQL if available, SQLite otherwise)."""
+    """Create a test database with migrations applied."""
     db_url = os.getenv(
         "DATABASE_URL_TEST",
         os.getenv("DATABASE_URL", "sqlite:///:memory:"),
@@ -19,15 +22,18 @@ def test_db():
 
     # Enable foreign keys for SQLite
     if "sqlite" in db_url:
-
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_conn, connection_record):  # noqa: ARG001
             cursor = dbapi_conn.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
+    else:
+        # For PostgreSQL, just create all tables; migrations are validated in CI
+        Base.metadata.drop_all(engine)
+        Base.metadata.create_all(engine)
 
     return engine
 

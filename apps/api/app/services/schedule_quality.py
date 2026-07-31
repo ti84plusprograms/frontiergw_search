@@ -1,3 +1,6 @@
+import re
+from dataclasses import dataclass
+
 from sqlalchemy.orm import Session
 
 from app.db import Airport
@@ -8,6 +11,15 @@ class ValidationError(Exception):
     """Raised when a schedule record fails validation."""
 
     pass
+
+
+@dataclass(frozen=True)
+class BatchQualityStats:
+    records: list[NormalizedFlightRecord]
+    duplicate_count: int
+    unique_airport_count: int
+    unique_route_count: int
+    unique_scheduled_flight_count: int
 
 
 def validate_flight_record(record: NormalizedFlightRecord, db: Session) -> None:
@@ -32,22 +44,31 @@ def validate_flight_record(record: NormalizedFlightRecord, db: Session) -> None:
     Raises:
         ValidationError: If any check fails
     """
-    origin_airport = db.query(Airport).filter_by(code=record.origin_code).first()
+    airport_codes = (record.origin_code, record.destination_code)
+    if any(not re.fullmatch(r"[A-Z]{3}", code) for code in airport_codes):
+        raise ValidationError("Airport codes must be exactly three uppercase letters")
+
+    if not record.carrier_code.strip():
+        raise ValidationError("Missing carrier code")
+    if not record.flight_number.strip():
+        raise ValidationError("Missing flight number")
+
+    if not re.fullmatch(r"[A-Z0-9]{2,3}", record.carrier_code):
+        raise ValidationError("Invalid carrier code")
+
+    if not re.fullmatch(r"[A-Z0-9]{1,8}", record.flight_number):
+        raise ValidationError("Invalid flight number")
+
+    origin_airport = db.query(Airport).filter_by(code=record.origin_code, is_active=True).first()
     if not origin_airport:
         raise ValidationError(f"Unknown airport code: {record.origin_code}")
 
-    dest_airport = db.query(Airport).filter_by(code=record.destination_code).first()
+    dest_airport = db.query(Airport).filter_by(code=record.destination_code, is_active=True).first()
     if not dest_airport:
         raise ValidationError(f"Unknown airport code: {record.destination_code}")
 
     if record.origin_code == record.destination_code:
         raise ValidationError("Origin and destination cannot be identical")
-
-    if not record.carrier_code.strip():
-        raise ValidationError("Missing carrier code")
-
-    if not record.flight_number.strip():
-        raise ValidationError("Missing flight number")
 
     if not record.operating_days:
         raise ValidationError("Operating days cannot be empty")
@@ -61,11 +82,12 @@ def validate_flight_record(record: NormalizedFlightRecord, db: Session) -> None:
 
     if record.effective_end and record.effective_end < record.effective_start:
         raise ValidationError(
-            f"Effective end {record.effective_end} is before effective start {record.effective_start}"
+            f"Effective end {record.effective_end} is before effective start "
+            f"{record.effective_start}"
         )
 
 
-def check_batch_quality(records: list[NormalizedFlightRecord]) -> None:
+def check_batch_quality(records: list[NormalizedFlightRecord]) -> BatchQualityStats:
     """
     Run batch-level quality checks per TDD §30.3.
 
@@ -87,21 +109,61 @@ def check_batch_quality(records: list[NormalizedFlightRecord]) -> None:
     if not effective_dates_present:
         raise ValidationError("No records have a valid effective start date")
 
-    # Detect obvious duplicates: same (carrier, flight_number, origin, destination, effective_start)
-    seen = set()
+    # Exact duplicates are removed deterministically; contradictory identities fail the gate.
+    seen: dict[tuple[object, ...], tuple[object, ...]] = {}
+    unique_records: list[NormalizedFlightRecord] = []
     duplicate_count = 0
     for r in records:
-        key = (
+        identity = (
             r.carrier_code,
             r.flight_number,
             r.origin_code,
             r.destination_code,
             r.effective_start,
+            r.effective_end,
         )
-        if key in seen:
+        payload = (
+            r.departure_local_time,
+            r.arrival_local_time,
+            r.arrival_day_offset,
+            tuple(r.operating_days),
+            r.equipment_code,
+        )
+        if identity in seen:
+            if seen[identity] != payload:
+                raise ValidationError(
+                    "Contradictory duplicate schedule record for "
+                    f"{r.carrier_code} {r.flight_number} {r.origin_code}-{r.destination_code}"
+                )
             duplicate_count += 1
-        seen.add(key)
+            continue
+        seen[identity] = payload
+        unique_records.append(r)
 
     duplicate_rate = duplicate_count / len(records) if records else 0
     if duplicate_rate > 0.05:  # >5% duplicates
         raise ValidationError(f"Duplicate rate too high: {duplicate_rate:.1%}")
+
+    airports = {code for r in unique_records for code in (r.origin_code, r.destination_code)}
+    routes = {
+        (r.origin_code, r.destination_code, r.effective_start, r.effective_end)
+        for r in unique_records
+    }
+    flights = {
+        (
+            r.carrier_code,
+            r.flight_number,
+            r.origin_code,
+            r.destination_code,
+            r.effective_start,
+            r.effective_end,
+        )
+        for r in unique_records
+    }
+    return BatchQualityStats(
+        records=unique_records,
+        duplicate_count=duplicate_count,
+        unique_airport_count=len(airports),
+        unique_route_count=len(routes),
+        unique_scheduled_flight_count=len(flights),
+    )

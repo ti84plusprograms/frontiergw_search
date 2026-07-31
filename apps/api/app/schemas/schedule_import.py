@@ -1,5 +1,6 @@
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Any
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
@@ -36,6 +37,12 @@ class NormalizedFlightRecord(BaseModel):
     equipment_code: str | None = None
 
 
+class ProviderRejectedRow(BaseModel):
+    row_number: int
+    raw_record: dict[str, Any]
+    reason: str
+
+
 class QuarantinedRecord(BaseModel):
     """Record that failed validation."""
 
@@ -46,14 +53,25 @@ class QuarantinedRecord(BaseModel):
 class ImportResult(BaseModel):
     """Result of a schedule import attempt."""
 
-    source_id: str | None = Field(
+    import_id: UUID = Field(default_factory=uuid4)
+    source_id: UUID | None = Field(
         None, description="UUID of created data_source, or None if import failed"
     )
     version: str | None = Field(None, description="Version identifier (checksum or timestamp)")
+    total_count: int = Field(default=0)
     accepted_count: int = Field(default=0, description="Number of successfully imported records")
     rejected_count: int = Field(default=0, description="Number of rejected records")
+    duplicate_count: int = Field(default=0)
+    unique_airport_count: int = Field(default=0)
+    unique_route_count: int = Field(default=0)
+    unique_scheduled_flight_count: int = Field(default=0)
     rejected_reasons: list[dict[str, Any]] = Field(
         default_factory=list, description="List of rejection reasons with counts"
     )
     success: bool = Field(default=False, description="Whether the import succeeded")
     error_message: str | None = Field(None, description="High-level error message if import failed")
+    error_code: str | None = None
+    activation_result: str = "not_attempted"
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    duration_seconds: float | None = None
