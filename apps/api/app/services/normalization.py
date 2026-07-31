@@ -43,9 +43,12 @@ def normalize_flight_record(raw: RawScheduleRecord) -> NormalizedFlightRecord:
     except ValueError as e:
         raise ValueError(f"Invalid operating days format: {e}") from e
 
+    if departure_time.tzinfo is not None or arrival_time.tzinfo is not None:
+        raise ValueError("Schedule times must be timezone-naive local wall-clock times")
+
     return NormalizedFlightRecord(
         carrier_code=raw.carrier_code.strip().upper(),
-        flight_number=raw.flight_number.strip(),
+        flight_number=raw.flight_number.strip().upper(),
         origin_code=raw.origin_code.strip().upper(),
         destination_code=raw.destination_code.strip().upper(),
         departure_local_time=departure_time,
@@ -53,6 +56,6 @@ def normalize_flight_record(raw: RawScheduleRecord) -> NormalizedFlightRecord:
         arrival_day_offset=raw.arrival_day_offset,
         effective_start=effective_start_date,
         effective_end=effective_end_date,
-        operating_days=operating_days_list,
+        operating_days=sorted(set(operating_days_list)),
         equipment_code=raw.equipment_code.strip() if raw.equipment_code else None,
     )
