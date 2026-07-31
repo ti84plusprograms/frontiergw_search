@@ -98,12 +98,12 @@ def upgrade() -> None:
         "uq_data_sources_identity", "data_sources", ["name", "provider_type", "version"]
     )
     op.create_unique_constraint("uq_data_sources_checksum", "data_sources", ["checksum"])
-    op.execute(
-        """
-        CREATE UNIQUE INDEX uq_data_sources_one_active
-        ON data_sources ((is_active))
-        WHERE is_active
-        """
+    op.create_index(
+        "uq_data_sources_one_active",
+        "data_sources",
+        ["is_active"],
+        unique=True,
+        postgresql_where=sa.text("is_active"),
     )
     op.create_unique_constraint(
         "uq_routes_source_identity",
