@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, UUID, DateTime, Index, String, UniqueConstraint, func, text
+from sqlalchemy import JSON, UUID, DateTime, Index, String, UniqueConstraint, func, literal_column, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -15,10 +15,9 @@ class DataSource(Base):
         UniqueConstraint("checksum", name="uq_data_sources_checksum"),
         Index(
             "uq_data_sources_one_active",
-            text("1"),
+            literal_column("(1)"),
             unique=True,
-            postgresql_where=text("is_active"),
-            sqlite_where=text("is_active = 1"),
+            postgresql_where=text("is_active IS TRUE"),
         ),
     )
 
