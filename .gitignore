@@ -1,6 +1,7 @@
 # Environment
 .env
 .env.local
+.env.*
 
 # Node
 node_modules/
@@ -8,6 +9,8 @@ node_modules/
 apps/web/.next/
 apps/web/out/
 *.tsbuildinfo
+playwright-report/
+test-results/
 
 # Python
 apps/api/.venv/

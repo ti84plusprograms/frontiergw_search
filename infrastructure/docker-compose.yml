@@ -7,8 +7,6 @@ services:
       POSTGRES_USER: gowild
       POSTGRES_PASSWORD: gowild
       POSTGRES_DB: gowild
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +17,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -50,18 +46,18 @@ services:
 
   web:
     build:
-      context: ../apps/web
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/web/Dockerfile
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
     ports:
       - "3000:3000"
     depends_on:
       - api
-    command: npm run dev
+    command: pnpm --filter gowild-web dev
     volumes:
-      - ../apps/web:/app
-      - /app/node_modules
+      - ../apps/web:/workspace/apps/web
+      - /workspace/node_modules
 
 volumes:
   postgres_data:

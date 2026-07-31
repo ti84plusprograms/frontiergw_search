@@ -10,6 +10,11 @@
 
 ## Phase 1 — Foundation
 
+TDD §33 requires airport autocomplete as part of the Phase 1 acceptance
+criteria. The airport catalog and search surface are therefore implemented
+here, even though the related data/API task rows remain grouped under Phase 2
+for roadmap continuity.
+
 | ID | Task | Owner | Status | Dependencies |
 |---|---|---|---|---|
 | FND-001 | Initialize monorepo | Claude | COMPLETE | None |
@@ -25,7 +30,7 @@
 
 | ID | Task | Owner | Status | Dependencies |
 |---|---|---|---|---|
-| DAT-001 | Implement airport schema and seed import | Unassigned | NOT STARTED | FND-005 |
+| DAT-001 | Implement airport schema and seed import | Claude | COMPLETE | FND-005 |
 | DAT-002 | Implement data-source schema | Unassigned | NOT STARTED | FND-005 |
 | DAT-003 | Implement route and scheduled-flight schemas | Unassigned | NOT STARTED | DAT-001, DAT-002 |
 | DAT-004 | Implement static schedule-provider interface | Unassigned | NOT STARTED | DAT-003 |
@@ -48,7 +53,7 @@
 
 | ID | Task | Owner | Status | Dependencies |
 |---|---|---|---|---|
-| API-001 | Implement airport search endpoint | Unassigned | NOT STARTED | DAT-001 |
+| API-001 | Implement airport search endpoint | Claude | COMPLETE | DAT-001 |
 | API-002 | Implement itinerary search endpoint | Unassigned | NOT STARTED | RTE-006, RTE-007 |
 | API-003 | Implement schedule-status endpoint | Unassigned | NOT STARTED | DAT-005 |
 | WEB-001 | Build search form | Unassigned | NOT STARTED | FND-004, API-001 |

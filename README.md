@@ -75,6 +75,16 @@ alembic upgrade head
 alembic revision --autogenerate -m "description"
 ```
 
+The initial migration creates the airport catalog and seeds the Phase 1 airport
+autocomplete data. The API container runs `alembic upgrade head` before starting
+Uvicorn. For a local backend without Docker, run the migration after starting
+PostgreSQL and Redis.
+
+The API health endpoint is a readiness check: `/api/v1/health` returns `200`
+only when PostgreSQL and Redis respond, and `503` otherwise. `/api/v1/live` is a
+dependency-free liveness check. Configure non-development service URLs
+explicitly; production does not accept the local development credentials.
+
 ### Frontend
 
 ```bash
@@ -101,6 +111,19 @@ pnpm build
 docker compose -f infrastructure/docker-compose.yml up
 docker compose -f infrastructure/docker-compose.yml logs -f api
 docker compose -f infrastructure/docker-compose.yml down
+```
+
+Compose keeps PostgreSQL and Redis on the internal service network rather than
+publishing their ports to the host. Only the API and web ports are exposed.
+
+### Frontend checks
+
+```bash
+pnpm run test:web
+pnpm run test:e2e:web
+pnpm --filter gowild-web type-check
+pnpm run lint:web
+pnpm run build:web
 ```
 
 ## Project Structure

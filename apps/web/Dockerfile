@@ -1,15 +1,18 @@
 FROM node:22-alpine
 
-WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.17.1 --activate
 
-COPY package.json pnpm-lock.yaml* package-lock.json* npm-shrinkwrap.json* ./
+WORKDIR /workspace
 
-RUN npm install --legacy-peer-deps || npm install
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/package.json
 
-COPY . .
+RUN pnpm install --filter gowild-web...
 
-RUN npm run build
+COPY apps/web apps/web
+
+RUN pnpm --filter gowild-web build
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["pnpm", "--filter", "gowild-web", "start"]
