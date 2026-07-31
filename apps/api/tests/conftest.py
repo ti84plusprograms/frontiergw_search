@@ -1,9 +1,6 @@
 import os
-from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
@@ -22,6 +19,7 @@ def test_db():
 
     # Enable foreign keys for SQLite
     if "sqlite" in db_url:
+
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_conn, connection_record):  # noqa: ARG001
             cursor = dbapi_conn.cursor()
