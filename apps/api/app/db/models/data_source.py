@@ -2,7 +2,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, UUID, DateTime, Index, String, UniqueConstraint, func, literal_column, text
+from sqlalchemy import (
+    JSON,
+    UUID,
+    DateTime,
+    Index,
+    String,
+    UniqueConstraint,
+    func,
+    literal_column,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
