@@ -36,13 +36,13 @@
 
 | ID | Task | Owner | Status | Dependencies |
 |---|---|---|---|---|
-| RTE-001 | Build timezone-aware flight instances | Unassigned | NOT STARTED | DAT-003 |
-| RTE-002 | Implement direct itinerary search | Unassigned | NOT STARTED | RTE-001 |
-| RTE-003 | Implement one-stop itinerary search | Unassigned | NOT STARTED | RTE-002 |
-| RTE-004 | Implement connection validation | Unassigned | NOT STARTED | RTE-003 |
-| RTE-005 | Implement itinerary deduplication | Unassigned | NOT STARTED | RTE-003 |
-| RTE-006 | Implement filters and sorting | Unassigned | NOT STARTED | RTE-002 |
-| RTE-007 | Implement estimated pricing | Unassigned | NOT STARTED | RTE-002 |
+| RTE-001 | Build timezone-aware flight instances | Claude | COMPLETE | DAT-003 |
+| RTE-002 | Implement direct itinerary search | Claude | COMPLETE | RTE-001 |
+| RTE-003 | Implement one-stop itinerary search | Claude | COMPLETE | RTE-002 |
+| RTE-004 | Implement connection validation | Claude | COMPLETE | RTE-003 |
+| RTE-005 | Implement itinerary deduplication | Claude | COMPLETE | RTE-003 |
+| RTE-006 | Implement filters and sorting | Claude | COMPLETE | RTE-002 |
+| RTE-007 | Implement estimated pricing | Claude | COMPLETE | RTE-002 |
 
 ## Phase 4 — API and frontend
 

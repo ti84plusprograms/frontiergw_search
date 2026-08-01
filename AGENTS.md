@@ -8,6 +8,7 @@ Before making changes, read:
 - `docs/TDD.md`
 - `TASKS.md`
 - `DECISIONS.md`
+- `PHASE.md`
 - Relevant tests and implementation files
 
 The PRD defines product requirements. The TDD defines the expected implementation design. Do not infer missing requirements from convenience. Record unresolved conflicts or ambiguities instead of silently changing scope.

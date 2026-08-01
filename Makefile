@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint build clean docker-up docker-down
+.PHONY: help install dev test lint lint-fix format-check typecheck build clean docker-up docker-down
 
 help:
 	@echo "Frontier GoWild Destination Explorer"
@@ -9,7 +9,9 @@ help:
 	@echo "  install      Install all dependencies (backend venv + frontend node_modules)"
 	@echo "  dev          Start both backend and frontend in development mode"
 	@echo "  test         Run all tests"
-	@echo "  lint         Run linters and formatters"
+	@echo "  format-check Check formatting without modifying files (CI-style)"
+	@echo "  lint         Run linters and formatters (auto-fixes in place)"
+	@echo "  typecheck    Run static type checks (backend + frontend)"
 	@echo "  build        Build frontend for production"
 	@echo "  clean        Remove build artifacts, caches, and venv"
 	@echo "  docker-up    Start Docker Compose services"
@@ -29,9 +31,23 @@ test:
 	@echo "Running backend tests..."
 	cd apps/api && source .venv/bin/activate && pytest tests/ -v
 
+format-check:
+	@echo "Checking backend formatting (no changes written)..."
+	cd apps/api && source .venv/bin/activate && ruff format --check .
+
 lint:
-	@echo "Linting and formatting backend..."
-	cd apps/api && source .venv/bin/activate && ruff format . && ruff check --fix . && mypy app
+	@echo "Linting backend (CI-style; no changes written)..."
+	cd apps/api && source .venv/bin/activate && ruff check .
+	@echo "Linting frontend..."
+	cd apps/web && pnpm lint
+
+lint-fix:
+	@echo "Formatting and auto-fixing backend lint..."
+	cd apps/api && source .venv/bin/activate && ruff format . && ruff check --fix .
+
+typecheck:
+	@echo "Type-checking backend..."
+	cd apps/api && source .venv/bin/activate && mypy app
 	@echo "Type-checking frontend..."
 	cd apps/web && pnpm type-check
 

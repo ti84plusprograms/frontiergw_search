@@ -4,10 +4,15 @@
 
 Before planning or modifying code, read:
 
-1. `docs/PRD.md` for product behavior and scope.
-2. `docs/TDD.md` for architecture, contracts, schemas, algorithms, and implementation constraints.
-3. `TASKS.md` for current work status.
-4. `DECISIONS.md` for approved deviations and architectural decisions.
+1. `PHASE.md` defines the exact scope and exit gate for the active phase.
+2. `docs/PRD.md` for product behavior and scope.
+3. `docs/TDD.md` for architecture, contracts, schemas, algorithms, and implementation constraints.
+4. `TASKS.md` for current work status.
+5. `DECISIONS.md` for approved deviations and architectural decisions.
+
+`PHASE.md` is overwritten in place at each phase transition. Prior phase contracts are
+not archived under `docs/phases/`; the `phase-N-complete` git tag preserves each contract
+at the commit it governed (recover with `git show phase-N-complete:PHASE.md`).
 
 The PRD controls what the product must do. The TDD controls how the product should be implemented.
 
