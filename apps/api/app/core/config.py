@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     # raising this requires an accepted ADR (PHASE.md §Change-Control Rules).
     max_supported_connections: int = 1
 
+    # --- Phase 4 API configuration (PHASE.md §Security, §Result Limits) ---
+    # Comma-separated allowed CORS origins. Never a production wildcard (PHASE.md
+    # §Security). Default is the local dev frontend.
+    cors_origins: str = "http://localhost:3000"
+    # Bounded maximum itineraries returned by POST /api/v1/search. Sorting happens
+    # before truncation; truncation is disclosed via a RESULTS_TRUNCATED warning.
+    search_max_results: int = 250
+    # Airport-search limits (GET /api/v1/airports).
+    airport_search_default_limit: int = 10
+    airport_search_max_limit: int = 25
+
     @field_validator("domestic_estimated_segment_price_usd", mode="before")
     @classmethod
     def _parse_price(cls, value: object) -> Decimal:
@@ -54,7 +65,18 @@ class Settings(BaseSettings):
             raise ValueError("DOMESTIC_ESTIMATED_SEGMENT_PRICE_USD must be nonnegative")
         if not 0 <= self.max_supported_connections <= 1:
             raise ValueError("MAX_SUPPORTED_CONNECTIONS must be 0 or 1 in Phase 3")
+        if self.search_max_results <= 0:
+            raise ValueError("SEARCH_MAX_RESULTS must be positive")
+        if self.airport_search_default_limit <= 0:
+            raise ValueError("AIRPORT_SEARCH_DEFAULT_LIMIT must be positive")
+        if self.airport_search_max_limit < self.airport_search_default_limit:
+            raise ValueError("AIRPORT_SEARCH_MAX_LIMIT must be >= AIRPORT_SEARCH_DEFAULT_LIMIT")
         return self
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parsed, trimmed list of allowed CORS origins (empty entries dropped)."""
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 settings = Settings()

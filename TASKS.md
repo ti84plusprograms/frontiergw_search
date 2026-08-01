@@ -48,13 +48,13 @@
 
 | ID | Task | Owner | Status | Dependencies |
 |---|---|---|---|---|
-| API-001 | Implement airport search endpoint | Unassigned | NOT STARTED | DAT-001 |
-| API-002 | Implement itinerary search endpoint | Unassigned | NOT STARTED | RTE-006, RTE-007 |
-| API-003 | Implement schedule-status endpoint | Unassigned | NOT STARTED | DAT-005 |
-| WEB-001 | Build search form | Unassigned | NOT STARTED | FND-004, API-001 |
-| WEB-002 | Build results list | Unassigned | NOT STARTED | API-002 |
-| WEB-003 | Build itinerary card | Unassigned | NOT STARTED | WEB-002 |
-| WEB-004 | Add filters, sorting, and URL state | Unassigned | NOT STARTED | WEB-002 |
+| API-001 | Implement airport search endpoint | Claude | COMPLETE | DAT-001 |
+| API-002 | Implement itinerary search endpoint | Claude | COMPLETE | RTE-006, RTE-007 |
+| API-003 | Implement schedule-status endpoint | Claude | COMPLETE | DAT-005 |
+| WEB-001 | Build search form | Claude | COMPLETE | FND-004, API-001 |
+| WEB-002 | Build results list | Claude | COMPLETE | API-002 |
+| WEB-003 | Build itinerary card | Claude | COMPLETE | WEB-002 |
+| WEB-004 | Add filters, sorting, and URL state | Claude | COMPLETE | WEB-002 |
 
 ## Phase 5 — Hardening
 
@@ -64,7 +64,7 @@
 | OPS-002 | Add structured logging | Unassigned | NOT STARTED | API-002 |
 | OPS-003 | Add rate limiting | Unassigned | NOT STARTED | API-002 |
 | OPS-004 | Add monitoring and error reporting | Unassigned | NOT STARTED | OPS-002 |
-| QA-001 | Add end-to-end tests | Unassigned | NOT STARTED | WEB-004 |
+| QA-001 | Add end-to-end tests | Claude | COMPLETE | WEB-004 |
 | QA-002 | Add routing performance tests | Unassigned | NOT STARTED | RTE-006 |
 | QA-003 | Add timezone edge-case suite | Unassigned | NOT STARTED | RTE-004 |
 

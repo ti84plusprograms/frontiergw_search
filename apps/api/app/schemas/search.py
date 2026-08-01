@@ -19,12 +19,12 @@ class SearchCriteria(BaseModel):
     origin: str
     departure_date: date
     max_connections: int = Field(default=1, ge=0, le=1)
-    min_connection_minutes: int = Field(default=45, gt=0)
-    max_connection_minutes: int = Field(default=240, gt=0)
+    min_connection_minutes: int = Field(default=45, ge=20, le=360)
+    max_connection_minutes: int = Field(default=240, ge=20, le=360)
     depart_after: time | None = None
     depart_before: time | None = None
     arrive_before: time | None = None
-    max_total_duration_minutes: int | None = Field(default=720)
+    max_total_duration_minutes: int | None = Field(default=720, ge=60, le=1440)
     max_price: float | None = None
     domestic_only: bool = False
     international_only: bool = False
@@ -37,13 +37,6 @@ class SearchCriteria(BaseModel):
         if len(code) != 3 or not code.isalpha():
             raise ValueError("origin must be exactly three alphabetical characters")
         return code
-
-    @field_validator("max_total_duration_minutes")
-    @classmethod
-    def _positive_total(cls, value: int | None) -> int | None:
-        if value is not None and value <= 0:
-            raise ValueError("max_total_duration_minutes must be positive")
-        return value
 
     @field_validator("max_price")
     @classmethod

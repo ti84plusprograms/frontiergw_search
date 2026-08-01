@@ -2,39 +2,42 @@
 
 ## Phase
 
-Phase 3 — Deterministic Routing Engine
+Phase 4 — Search API and Web Interface
 
 ## Objective
 
-Build the deterministic flight-routing engine that converts normalized schedule definitions into dated, timezone-aware itineraries.
+Expose the completed deterministic routing engine through a stable HTTP API and build the initial user-facing web application.
 
-At the end of this phase, the backend must be able to:
+At the end of Phase 4, a user must be able to:
 
-* Resolve scheduled flights for a specific operating date.
-* Generate valid direct itineraries.
-* Generate valid one-stop itineraries.
-* Validate connection timing.
-* Prevent circular and duplicate itineraries.
-* Calculate flight, layover, and total journey durations.
-* Apply deterministic filters and sorting.
-* Attach clearly labeled estimated GoWild pricing.
-* Return routing-domain results through tested service interfaces.
+* Search for an origin airport by code, city, or airport name.
+* Select a supported departure date.
+* Configure direct or one-stop routing.
+* Apply supported time, duration, geography, and estimated-price filters.
+* Submit a search through the web interface.
+* View deterministic itinerary results.
+* Inspect flight segments, connections, local times, durations, estimated prices, availability state, and data freshness.
+* Sort results.
+* Preserve search state in the URL.
+* Refresh or share a search URL without losing criteria.
+* Understand that schedule results and estimated prices are not verified GoWild availability.
+* Open Frontier to confirm availability and complete booking.
 
-This phase does not implement the public search API, production frontend search experience, live Frontier availability, or AI-assisted search.
+Phase 4 must use the routing engine completed in Phase 3. The frontend must not duplicate routing, timing, pricing, or availability logic.
 
 ---
 
 # Included Tasks
 
-Only the following tasks are included in Phase 3:
+Only the following tasks are included in Phase 4:
 
-* RTE-001 — Build timezone-aware flight instances
-* RTE-002 — Implement direct itinerary search
-* RTE-003 — Implement one-stop itinerary search
-* RTE-004 — Implement connection validation
-* RTE-005 — Implement itinerary deduplication
-* RTE-006 — Implement filters and sorting
-* RTE-007 — Implement estimated pricing
+* API-001 — Implement airport search endpoint
+* API-002 — Implement itinerary search endpoint
+* API-003 — Implement schedule-status endpoint
+* WEB-001 — Build search form
+* WEB-002 — Build results list
+* WEB-003 — Build itinerary card
+* WEB-004 — Add filters, sorting, and URL state
 
 No other task is part of the active phase unless this file is explicitly amended and approved.
 
@@ -42,39 +45,43 @@ No other task is part of the active phase unless this file is explicitly amended
 
 # Explicitly Excluded
 
-The following functionality is not part of Phase 3:
+The following functionality is not part of Phase 4:
 
-* Public destination-search API
-* Airport-search API
-* Production search form
-* Search-results UI
-* Map interface
-* User accounts
+* Live GoWild availability
+* Exact Frontier taxes and fees
+* Frontier account authentication
+* Frontier credential storage
+* Frontier browser automation
+* Official Frontier NDC integration
+* Third-party live shopping integration
+* Flight booking
+* Payment processing
 * Saved searches
+* User accounts
+* Notifications or alerts
 * Round-trip optimization
 * Multi-city routing
 * More than one connection
-* Live GoWild availability
-* Exact taxes and fees
-* Frontier account authentication
-* Frontier browser automation
-* Official Frontier or NDC integration
-* Third-party live flight shopping
+* Flexible-date or calendar-grid search
 * Natural-language search
-* LLM-based route generation
+* LLM-generated routes or prices
+* AI destination recommendations
 * Weather integration
 * Hotel pricing
-* Notifications
+* Rental-car pricing
+* Native mobile applications
+* Production-scale caching
+* Production rate limiting
+* Full observability implementation
 * Production deployment
-* Full product end-to-end tests
 
-Partial implementation of an excluded feature must not be required by Phase 3 builds, tests, migrations, or CI.
+Partial implementation of an excluded feature must not be required by Phase 4 builds, tests, or CI.
 
 ---
 
 # Requirement Authority
 
-Use this precedence when evaluating Phase 3 work:
+Use this precedence when evaluating Phase 4 work:
 
 1. `PHASE.md` defines the exact active scope and completion gate.
 2. `DECISIONS.md` defines approved architectural decisions.
@@ -84,444 +91,541 @@ Use this precedence when evaluating Phase 3 work:
 
 `TASKS.md` cannot expand the active phase.
 
-A future task marked `COMPLETE` incorrectly must be corrected to its factual status. Do not implement an excluded feature merely to preserve an inaccurate task status.
+An incorrectly completed future task must be corrected to its factual status. Do not implement an excluded feature merely to preserve an inaccurate task status.
 
-When this document conflicts with a general future-state example in the TDD, this active-phase contract controls Phase 3 scope. The conflict must still be documented if it affects the eventual architecture.
+When a future-state example in the PRD or TDD includes functionality excluded from Phase 4, this active-phase contract controls the current implementation.
 
 ---
 
 # Core Design Rules
 
-## Deterministic Execution
+## Backend Authority
 
-Routing must be implemented with deterministic application logic.
+The backend is authoritative for:
 
-The routing engine must not use an LLM to:
+* Request validation
+* Airport resolution
+* Schedule coverage validation
+* Route generation
+* Connection validation
+* Timezone calculations
+* Duration calculations
+* Estimated pricing
+* Availability status
+* Filtering
+* Sorting
+* Itinerary identity
+* Data-freshness metadata
 
-* Select flights
+The frontend must not independently recalculate or override these values.
+
+Client-side sorting may be used only when it exactly follows the server-defined ordering contract and does not alter price, duration, availability, or route validity.
+
+---
+
+## Deterministic Search
+
+The API must call the deterministic routing engine completed in Phase 3.
+
+The API and frontend must not use an LLM to:
+
+* Generate destinations
 * Generate routes
-* Calculate dates or times
+* Infer flight schedules
+* Calculate prices
 * Validate connections
-* Calculate duration
-* Calculate price
 * Determine availability
-* Deduplicate itineraries
-* Rank results
-
-Given the same schedule dataset, configuration, search criteria, and clock-independent inputs, the engine must return the same results in the same order.
+* Repair malformed routing data
 
 ---
 
-## Timezone Awareness
+## Honest User Communication
 
-All resolved flight-instance datetimes must be timezone-aware.
+The interface must clearly distinguish:
 
-The implementation must:
+* Scheduled itinerary
+* Estimated price
+* Availability not checked
+* Stale or unavailable schedule data
+* No results
+* Internal or provider errors
 
-* Use IANA timezone identifiers from airport metadata.
-* Interpret departure wall-clock time in the origin airport timezone.
-* Interpret arrival wall-clock time in the destination airport timezone.
-* Apply `arrival_day_offset` before resolving the destination datetime.
-* Calculate elapsed duration using absolute instants.
-* Preserve local timezone offsets in domain serialization where applicable.
-* Reject or quarantine schedules with invalid or missing timezone data.
-* Avoid naive datetime arithmetic.
+The interface must not claim:
 
-UTC may be used internally for comparisons, but local airport time and timezone must remain available.
+* A flight is bookable
+* A GoWild seat is available
+* A displayed price is guaranteed
+* A user can book for the estimated amount
+* Schedule presence confirms inventory
+
+Use language such as:
+
+```text
+Estimated GoWild cost
+```
+
+```text
+Availability not checked
+```
+
+```text
+Check on Frontier
+```
+
+Avoid language such as:
+
+```text
+Available now
+```
+
+```text
+Book for $14.91
+```
+
+```text
+Confirmed GoWild fare
+```
 
 ---
 
-## Exact Money Representation
+# Required Phase 4 Behavior
 
-Estimated pricing must not use binary floating-point arithmetic.
+## 1. API Versioning
 
-Use one of:
+All public Phase 4 API endpoints must use the versioned base path:
 
-* Python `Decimal`
-* Integer minor units
-* PostgreSQL `NUMERIC`, if persisted
+```text
+/api/v1
+```
 
-Estimated and verified pricing must remain distinct concepts.
+Required endpoints:
 
-Phase 3 implements only estimated pricing.
+```text
+GET  /api/v1/health
+GET  /api/v1/airports
+POST /api/v1/search
+GET  /api/v1/schedules/status
+```
+
+The existing health endpoint may remain unchanged if it already complies with the repository contract.
 
 ---
 
-# Required Phase 3 Behavior
+# API-001 — Airport Search Endpoint
 
-## 1. Search Criteria Domain Model
+## Endpoint
 
-The routing engine must define a validated search-criteria model containing at least:
+```http
+GET /api/v1/airports
+```
 
-* Origin airport code
+## Query Parameters
+
+Required or supported parameters:
+
+```text
+query
+limit
+```
+
+Recommended request:
+
+```http
+GET /api/v1/airports?query=atl&limit=10
+```
+
+## Required Search Behavior
+
+Airport search must support normalized matching against:
+
+* IATA airport code
+* Airport name
+* City
+* State or region, when available
+
+Matching must be:
+
+* Case-insensitive
+* Whitespace-trimmed
+* Deterministic
+* Limited to active airports
+* Bounded by a maximum result count
+
+Recommended priority:
+
+1. Exact airport-code match
+2. Airport-code prefix match
+3. Exact city match
+4. City prefix match
+5. Airport-name match
+6. State or region match
+
+Stable tie-breakers must be documented.
+
+## Validation Rules
+
+* Empty or whitespace-only queries must either return a validated error or a documented bounded default result. Returning all airports without a strict limit is not allowed.
+* `limit` must have a documented default.
+* `limit` must have a documented maximum.
+* Invalid limits must return HTTP 422 or the repository’s standard validation status.
+* Airport codes must be serialized in uppercase.
+* Inactive airports must not appear.
+
+Recommended defaults:
+
+```text
+Default limit: 10
+Maximum limit: 25
+Minimum query length: 1
+```
+
+## Response Model
+
+```json
+{
+  "items": [
+    {
+      "code": "ATL",
+      "name": "Hartsfield-Jackson Atlanta International Airport",
+      "city": "Atlanta",
+      "state_or_region": "Georgia",
+      "country_code": "US",
+      "timezone": "America/New_York"
+    }
+  ],
+  "count": 1
+}
+```
+
+The response must not expose internal database identifiers unless they are intentionally part of the public contract.
+
+---
+
+# API-002 — Itinerary Search Endpoint
+
+## Endpoint
+
+```http
+POST /api/v1/search
+Content-Type: application/json
+```
+
+## Request Model
+
+The request must support at least:
+
+```json
+{
+  "origin": "ATL",
+  "departure_date": "2026-08-04",
+  "max_connections": 1,
+  "min_connection_minutes": 45,
+  "max_connection_minutes": 240,
+  "depart_after": "06:00",
+  "depart_before": "22:00",
+  "arrive_before": null,
+  "max_total_duration_minutes": 720,
+  "max_price": 50,
+  "domestic_only": false,
+  "international_only": false,
+  "sort": "PRICE"
+}
+```
+
+Optional fields may be omitted and replaced with validated server defaults.
+
+## Request Validation
+
+The API must reject:
+
+* Invalid airport-code formatting
+* Unknown or inactive origin airport
+* Invalid date formatting
+* Date outside active schedule coverage
+* Maximum connections outside `0` or `1`
+* Nonpositive connection durations
+* Maximum connection below minimum connection
+* Invalid 24-hour time values
+* Nonpositive maximum duration
+* Negative maximum price
+* Domestic-only and international-only both enabled
+* Unsupported sort modes
+* Unknown request fields when strict-schema mode is selected
+
+The API must not begin routing before request validation succeeds.
+
+## Search Service Integration
+
+The endpoint must:
+
+1. Validate the HTTP request.
+2. Convert the request into the Phase 3 search-criteria domain model.
+3. Identify the active schedule source.
+4. Call the deterministic routing service.
+5. Convert domain itineraries into public response models.
+6. Include schedule-freshness metadata.
+7. Return typed warnings.
+8. Avoid leaking internal exceptions or provider-specific structures.
+
+## Response Model
+
+The response must contain at least:
+
+```json
+{
+  "search_id": "7dfce768-cc8c-4a21-a4cb-fad6f4a10b97",
+  "origin": {
+    "code": "ATL",
+    "city": "Atlanta",
+    "timezone": "America/New_York"
+  },
+  "departure_date": "2026-08-04",
+  "generated_at": "2026-08-03T21:00:00-04:00",
+  "data_freshness": {
+    "schedule_source": "static-schedule",
+    "schedule_version": "2026-08-01",
+    "schedule_updated_at": "2026-08-01T04:00:00Z",
+    "schedule_effective_start": "2026-08-01",
+    "schedule_effective_end": "2026-10-31",
+    "availability_checked_at": null
+  },
+  "result_count": 1,
+  "results": [
+    {
+      "itinerary_id": "iti_1f8b...",
+      "origin": {
+        "code": "ATL",
+        "city": "Atlanta",
+        "country_code": "US"
+      },
+      "destination": {
+        "code": "DEN",
+        "city": "Denver",
+        "country_code": "US"
+      },
+      "departure_at": "2026-08-04T09:35:00-04:00",
+      "arrival_at": "2026-08-04T11:05:00-06:00",
+      "connection_count": 0,
+      "total_duration_minutes": 210,
+      "airborne_duration_minutes": 210,
+      "total_layover_minutes": 0,
+      "segments": [
+        {
+          "sequence": 1,
+          "carrier": "F9",
+          "flight_number": "1234",
+          "origin": "ATL",
+          "destination": "DEN",
+          "departure_at": "2026-08-04T09:35:00-04:00",
+          "arrival_at": "2026-08-04T11:05:00-06:00",
+          "duration_minutes": 210
+        }
+      ],
+      "price": {
+        "amount": "14.91",
+        "currency": "USD",
+        "status": "ESTIMATED",
+        "segment_count": 1,
+        "verified_at": null,
+        "disclaimer": "Estimated GoWild cost. Final taxes, fees, and availability must be confirmed with Frontier."
+      },
+      "availability": {
+        "status": "NOT_CHECKED",
+        "checked_at": null,
+        "source": null,
+        "confidence": "LOW"
+      },
+      "booking_url": null
+    }
+  ],
+  "warnings": [
+    {
+      "code": "AVAILABILITY_NOT_CHECKED",
+      "message": "GoWild availability has not been verified."
+    }
+  ]
+}
+```
+
+## Serialization Rules
+
+* Datetimes must be ISO 8601 strings with timezone offsets.
+* Money should be serialized as a decimal-safe string unless the project has an accepted numeric serialization policy.
+* Enum values must be stable public strings.
+* Internal ORM models must not be serialized directly.
+* Fields must not change based on whether results are empty.
+* `results` must be an empty array when no itineraries match.
+* `result_count` must equal the length of `results`.
+
+## No-Result Behavior
+
+A valid search with no matching itinerary must return a successful response unless the repository has an accepted alternative contract.
+
+Recommended behavior:
+
+```http
+HTTP 200
+```
+
+```json
+{
+  "result_count": 0,
+  "results": [],
+  "warnings": [
+    {
+      "code": "NO_MATCHING_ITINERARIES",
+      "message": "No scheduled itineraries matched the selected criteria."
+    }
+  ]
+}
+```
+
+No-result searches must not be returned as HTTP 500.
+
+---
+
+# API-003 — Schedule Status Endpoint
+
+## Endpoint
+
+```http
+GET /api/v1/schedules/status
+```
+
+## Required Response
+
+```json
+{
+  "active": true,
+  "source": "static-frontier-schedule",
+  "version": "2026-08-01",
+  "retrieved_at": "2026-08-01T04:00:00Z",
+  "effective_start": "2026-08-01",
+  "effective_end": "2026-10-31",
+  "route_count": 120,
+  "scheduled_flight_count": 1830
+}
+```
+
+When no active schedule exists:
+
+* Return a stable typed response or documented API error.
+* Do not return a raw database error.
+* Do not claim that search data is available.
+
+The endpoint must report the same active source version used by routing searches.
+
+---
+
+# Public API Error Contract
+
+All API errors must use a consistent schema.
+
+```json
+{
+  "error": {
+    "code": "DATE_OUTSIDE_SCHEDULE_RANGE",
+    "message": "The departure date is outside the active schedule range.",
+    "details": {
+      "supported_start": "2026-08-01",
+      "supported_end": "2026-10-31"
+    },
+    "request_id": "req_123"
+  }
+}
+```
+
+Required error categories include:
+
+```text
+INVALID_REQUEST
+INVALID_AIRPORT
+INVALID_DEPARTURE_DATE
+DATE_OUTSIDE_SCHEDULE_RANGE
+NO_ACTIVE_SCHEDULE
+INVALID_CONNECTION_RANGE
+INVALID_TIME_FILTER
+INVALID_PRICE_FILTER
+UNSUPPORTED_SORT
+DATABASE_UNAVAILABLE
+INTERNAL_ERROR
+```
+
+## Error Requirements
+
+* Every error response must include a stable error code.
+* Every error response must include a request ID.
+* Expected validation errors must not include stack traces.
+* Internal errors must not expose SQL, secrets, filesystem paths, or Python internals.
+* The frontend must render expected errors differently from unexpected failures.
+* API validation status codes must be documented and tested.
+
+---
+
+# OpenAPI Contract
+
+FastAPI must expose:
+
+```text
+/docs
+/openapi.json
+```
+
+Phase 4 must:
+
+* Generate a valid OpenAPI schema.
+* Include all Phase 4 endpoints.
+* Include request and response models.
+* Include error-response documentation where practical.
+* Detect accidental OpenAPI contract changes in CI or review.
+* Keep frontend types synchronized with the API contract.
+
+The OpenAPI document should be checked into the repository or generated deterministically through a documented command.
+
+---
+
+# Frontend Architecture
+
+## Required Routes
+
+Minimum frontend routes:
+
+```text
+/
+```
+
+Search interface and initial state.
+
+```text
+/results
+```
+
+Search results represented through URL parameters.
+
+```text
+/data-status
+```
+
+Optional but recommended view of active schedule metadata.
+
+An `/about` page is optional and must not block Phase 4.
+
+---
+
+# WEB-001 — Search Form
+
+## Required Fields
+
+The search form must include:
+
+* Origin airport
 * Departure date
 * Maximum connections
+
+The form must support access to these additional filters:
+
 * Minimum connection duration
 * Maximum connection duration
-* Optional departure-after time
-* Optional departure-before time
-* Optional arrival-before time
-* Optional maximum total duration
-* Optional maximum estimated price
-* Optional domestic-only filter
-* Optional international-only filter
-* Sort mode
-
-Requirements:
-
-* Origin airport code is normalized to uppercase.
-* Maximum connections is limited to `0` or `1`.
-* Minimum connection duration is positive.
-* Maximum connection duration exceeds or equals the minimum.
-* Maximum total duration is positive when present.
-* Maximum price is nonnegative when present.
-* Domestic-only and international-only cannot both be enabled.
-* Invalid criteria fail before schedule traversal begins.
-
-This phase may define backend-only Pydantic or domain models. A public HTTP request schema is not required.
-
----
-
-## 2. Flight-Instance Resolution
-
-A scheduled-flight definition must be resolvable into a dated flight instance.
-
-The resolved flight instance must contain at least:
-
-* Scheduled-flight identifier
-* Carrier code
-* Flight number
-* Origin airport code
-* Destination airport code
-* Timezone-aware departure datetime
-* Timezone-aware arrival datetime
-* Duration in minutes
-* Operating date
-* Source-version reference or traceability identifier
-
-Resolution must verify:
-
-* The selected date is within the schedule’s effective range.
-* The selected ISO weekday is present in `operating_days`.
-* Origin and destination airports exist.
-* Both airports have valid IANA timezones.
-* Departure and arrival wall-clock times are valid.
-* Arrival occurs after departure as an absolute instant.
-* Computed duration is positive.
-* `arrival_day_offset` is applied correctly.
-
-A schedule definition that does not operate on the requested date must not produce a flight instance.
-
----
-
-## 3. Effective-Date Handling
-
-A scheduled flight is applicable only when:
-
-```text
-effective_start <= operating_date
-```
-
-and either:
-
-```text
-effective_end is null
-```
-
-or:
-
-```text
-operating_date <= effective_end
-```
-
-Tests must cover:
-
-* Exact effective-start boundary
-* Exact effective-end boundary
-* One day before effective start
-* One day after effective end
-* Open-ended schedules
-* Conflicting or duplicate schedule definitions
-
----
-
-## 4. Weekday Handling
-
-Weekdays must use ISO values:
-
-* Monday: 1
-* Tuesday: 2
-* Wednesday: 3
-* Thursday: 4
-* Friday: 5
-* Saturday: 6
-* Sunday: 7
-
-The engine must determine weekday applicability from the requested operating date, not from UTC conversion.
-
----
-
-## 5. Direct Itinerary Generation
-
-For a valid search origin and date, the routing engine must:
-
-1. Retrieve applicable scheduled flights departing from the origin.
-2. Resolve each into a flight instance.
-3. Apply segment-level search filters.
-4. Create one-segment itineraries.
-5. Calculate itinerary-level duration values.
-6. Attach estimated price.
-7. Deduplicate equivalent results.
-8. Return results in deterministic order.
-
-Each direct itinerary must include:
-
-* Deterministic itinerary ID
-* Origin
-* Destination
-* Departure datetime
-* Arrival datetime
-* One ordered segment
-* Connection count of `0`
-* Total duration
-* Airborne duration
-* Layover duration of `0`
-* Estimated price summary
-* Availability status of `NOT_CHECKED`
-
-A direct itinerary must not be generated when the destination equals the origin.
-
----
-
-## 6. One-Stop Itinerary Generation
-
-When `max_connections` is `1`, the engine must generate valid two-segment itineraries.
-
-For each valid first segment:
-
-1. Identify scheduled flights departing from the first segment’s destination.
-2. Consider departures on the connection airport’s applicable local date.
-3. Consider the following local date where needed for after-midnight departures.
-4. Resolve second-segment candidates into timezone-aware instances.
-5. Calculate the layover as:
-
-```text
-second departure instant - first arrival instant
-```
-
-6. Validate the connection.
-7. Construct an itinerary when all rules pass.
-
-A valid one-stop itinerary must satisfy all of the following:
-
-* Exactly two segments
-* Exactly one connection
-* Second origin equals first destination
-* Second departure occurs after first arrival
-* Layover is within configured limits
-* Final destination differs from original origin
-* Final destination differs from connection airport
-* No airport repeats in the path
-* No segment is duplicated
-* Total duration is positive
-* Total duration is within configured limits
-* The second flight operates on its resolved departure date
-
----
-
-## 7. Connection-Date Resolution
-
-The engine must correctly distinguish:
-
-* Same-calendar-day connections
-* Connections crossing midnight
-* Connections where airport timezones differ
-* Arrivals whose local date differs from departure date
-* Second segments operating on the next local day
-
-The implementation must not assume that both segments share the same date or timezone.
-
-Candidate second-segment operating dates should be derived from the connection airport’s local arrival date and the configured connection window.
-
-The implementation may inspect more than two local dates if required by an accepted connection-window policy, but Phase 3 does not require overnight layovers longer than the configured maximum.
-
----
-
-## 8. Connection Validation
-
-Default configuration, unless superseded by an accepted ADR:
-
-```text
-Minimum connection: 45 minutes
-Maximum connection: 240 minutes
-Maximum total duration: 720 minutes
-Maximum connections: 1
-Overnight connection support: only when the elapsed layover remains within the configured maximum
-```
-
-Connection validation must reject:
-
-* Negative layovers
-* Zero-duration layovers
-* Layovers below the minimum
-* Layovers above the maximum
-* Second departure before first arrival
-* Repeated airports
-* Return to the original origin
-* Duplicate segments
-* Invalid second-segment operating dates
-* Total duration above the configured maximum
-* Invalid timezone information
-* Impossible or nonpositive segment durations
-
-Boundary behavior must be explicit and tested.
-
-Recommended inclusive rules:
-
-```text
-layover >= minimum connection
-layover <= maximum connection
-total duration <= maximum total duration
-```
-
----
-
-## 9. Airport-Path Rules
-
-For Phase 3, an itinerary airport path must be acyclic.
-
-Valid examples:
-
-```text
-ATL → DEN
-ATL → DEN → LAS
-```
-
-Invalid examples:
-
-```text
-ATL → ATL
-ATL → DEN → ATL
-ATL → DEN → DEN
-ATL → DEN → ATL → LAS
-```
-
-The last example is also outside Phase 3 because it contains more than one connection.
-
----
-
-## 10. Duration Calculations
-
-The itinerary domain model must calculate at least:
-
-* Segment duration for each segment
-* Total airborne duration
-* Total layover duration
-* Total itinerary duration
-
-Definitions:
-
-```text
-segment duration =
-segment arrival instant - segment departure instant
-```
-
-```text
-total airborne duration =
-sum of segment durations
-```
-
-```text
-total layover duration =
-sum of time between adjacent segments
-```
-
-```text
-total itinerary duration =
-final arrival instant - initial departure instant
-```
-
-The following invariant must hold:
-
-```text
-total itinerary duration =
-total airborne duration + total layover duration
-```
-
-Allow only a documented rounding tolerance if durations are represented below minute precision. Prefer exact minute arithmetic after validating source precision.
-
----
-
-## 11. Deterministic Itinerary Identity
-
-Every itinerary must receive a deterministic identity.
-
-The identity must be based on stable itinerary-defining fields, including:
-
-* Operating date
-* Ordered carrier codes
-* Ordered flight numbers
-* Ordered origin and destination codes
-* Ordered departure timestamps
-* Ordered arrival timestamps, if required to avoid collisions
-
-Recommended derivation:
-
-```text
-SHA-256 of a canonical serialized segment signature
-```
-
-Canonical serialization must:
-
-* Use stable field ordering.
-* Use timezone-aware ISO 8601 values or normalized UTC instants.
-* Avoid locale-dependent formatting.
-* Avoid random identifiers.
-* Produce the same hash across repeated executions.
-
-Equivalent itineraries must produce the same itinerary ID.
-
-Materially different itineraries must produce different IDs.
-
----
-
-## 12. Deduplication
-
-The engine must remove equivalent duplicate itineraries.
-
-Duplicate schedules may arise from:
-
-* Reimported provider records
-* Overlapping effective schedule definitions
-* Multiple active records representing the same operation
-* Provider normalization errors
-* Equivalent route-generation paths
-
-Deduplication must occur using deterministic segment identity or itinerary identity.
-
-When duplicate candidates contain conflicting metadata, the engine must:
-
-* Apply a documented precedence rule, or
-* Reject the conflicting candidates, or
-* Produce a diagnostic that prevents silent arbitrary selection
-
-The selected rule must be tested.
-
-Deduplication must not collapse:
-
-* Different departure times
-* Different flight numbers
-* Different connection airports
-* Different operating dates
-* Different segment sequences
-
----
-
-## 13. Filtering
-
-Phase 3 must support deterministic filtering for at least:
-
-* Maximum connections
 * Departure after
 * Departure before
 * Arrival before
@@ -529,35 +633,250 @@ Phase 3 must support deterministic filtering for at least:
 * Maximum estimated price
 * Domestic only
 * International only
+* Sort mode
 
-Optional filters may be added only when they do not expand into future product features.
+Advanced filters may be placed in a collapsible section.
 
-Time-filter semantics must be documented.
+## Airport Combobox
 
-Recommended behavior:
+The airport selector must:
 
-* Departure filters apply to the itinerary’s initial departure in the origin airport’s local time.
-* Arrival-before applies to the itinerary’s final arrival in the destination airport’s local time.
-* Duration filters use elapsed minutes.
-* Price filters use estimated itinerary total.
-* Domestic-only requires the destination country to match the origin country.
-* International-only requires the destination country to differ from the origin country.
+* Query `GET /api/v1/airports`.
+* Support keyboard navigation.
+* Support mouse or touch selection.
+* Display airport code and city.
+* Distinguish airports with similar city names.
+* Debounce requests.
+* Cancel or ignore stale requests.
+* Show loading state.
+* Show no-match state.
+* Show error state.
+* Store the selected airport code, not arbitrary free text.
+* Prevent submission when no valid airport is selected.
 
-Segment-level versus itinerary-level filtering must not be ambiguous.
+Recommended display:
+
+```text
+ATL — Atlanta, Georgia
+```
+
+## Date Picker
+
+The date picker must:
+
+* Use a valid date input or accessible calendar component.
+* Reject dates before the supported search period.
+* Reject dates after active schedule coverage.
+* Use the selected calendar date without timezone shifting.
+* Preserve the date after navigation or refresh.
+* Present the supported date range where practical.
+
+## Form Validation
+
+Client-side validation should improve usability but must not replace backend validation.
+
+The form must prevent obviously invalid combinations, including:
+
+* No selected origin
+* No departure date
+* Maximum connection below minimum
+* Negative price
+* Domestic and international both enabled
+
+All backend validation errors must still be handled.
+
+## Submission
+
+Submitting the form must:
+
+1. Serialize normalized search state.
+2. Navigate to `/results`.
+3. Preserve criteria in URL parameters.
+4. Trigger the backend search.
+5. Avoid duplicate submissions while a request is active.
+6. Allow browser Back and Forward navigation.
 
 ---
 
-## 14. Sorting
+# WEB-002 — Results List
 
-Phase 3 must support deterministic sorting by at least:
+The results page must support:
 
+* Loading state
+* Successful result state
+* Empty-result state
+* Validation-error state
+* Network-error state
+* Unexpected-error state
+* Retry action
+* Search summary
+* Result count
+* Data-freshness display
+* Warning display
+* Sorting controls
+* Filter controls
+* Responsive layout
+
+Results must be rendered using itinerary cards or an equivalent accessible list structure.
+
+The page must not require a map.
+
+## Search Summary
+
+The page must show:
+
+* Origin
+* Departure date
+* Direct or one-stop allowance
+* Active filters
+* Sort mode
+* Result count
+
+## Freshness Information
+
+The page must display or make accessible:
+
+* Schedule source
+* Schedule version
+* Schedule update time
+* Supported schedule range
+* Availability-not-checked warning
+
+The interface must not hide the distinction between schedule freshness and availability freshness.
+
+---
+
+# WEB-003 — Itinerary Card
+
+Each itinerary card must display at least:
+
+* Destination city
+* Destination airport code
+* Departure local time
+* Arrival local time
+* Departure date
+* Arrival date when different
+* Timezone context or offset where needed
+* Connection count
+* Total duration
+* Airborne duration
+* Total layover duration
+* Segment flight numbers
+* Segment origin and destination
+* Connection airport
+* Connection duration
 * Estimated price
-* Shortest total duration
-* Earliest departure
-* Latest departure
-* Destination code or alphabetical destination
+* Price status
+* Availability status
+* Data disclaimer
+* Frontier handoff action
 
-Recommended sort identifiers:
+## Direct Itinerary
+
+A direct itinerary must visibly indicate:
+
+```text
+Direct
+```
+
+It must not display a false connection or layover.
+
+## One-Stop Itinerary
+
+A one-stop itinerary must display:
+
+* Connection airport
+* Layover duration
+* Both segments in chronological order
+* Any date change between segments
+* Total journey duration
+
+## Price Display
+
+Recommended:
+
+```text
+Estimated: $29.82
+```
+
+Required supporting text:
+
+```text
+Final taxes, fees, and GoWild availability must be confirmed with Frontier.
+```
+
+Do not use styling or wording that makes the estimate appear guaranteed.
+
+## Availability Display
+
+Phase 4 expected state:
+
+```text
+Availability not checked
+```
+
+Do not display a green “available” state for scheduled itineraries.
+
+## Booking Handoff
+
+Use an action such as:
+
+```text
+Check on Frontier
+```
+
+Where a stable deep link is unavailable, the action may:
+
+* Open Frontier’s booking page.
+* Present the exact origin, destination, date, and flight details needed for manual confirmation.
+* Copy the search details.
+
+The action must not claim to preserve the estimated fare.
+
+---
+
+# WEB-004 — Filters, Sorting, and URL State
+
+## URL State
+
+Search criteria must be represented in URL query parameters.
+
+Example:
+
+```text
+/results?origin=ATL&date=2026-08-04&connections=1&sort=PRICE
+```
+
+Supported filter parameters should be documented.
+
+Requirements:
+
+* Refresh preserves search state.
+* Shared URLs reproduce the same request criteria.
+* Browser Back and Forward work.
+* Invalid URL values are handled safely.
+* URL state is normalized.
+* Default values may be omitted when behavior remains unambiguous.
+* Arbitrary URL values must not bypass backend validation.
+
+## Filter Behavior
+
+Changing filters must use one clearly documented strategy:
+
+1. Submit a new backend search, or
+2. Apply a client-side filter only to an already complete and equivalent result set.
+
+Recommended Phase 4 strategy:
+
+* Treat backend search criteria as authoritative.
+* Update URL state.
+* Submit a new search request.
+
+This avoids divergence between frontend and backend semantics.
+
+## Sort Behavior
+
+Sorting must map directly to supported backend sort values:
 
 ```text
 PRICE
@@ -567,685 +886,461 @@ LATEST_DEPARTURE
 DESTINATION
 ```
 
-Each sort must define stable tie-breakers.
+Labels may be user-friendly:
 
-Recommended tie-breaker sequence:
+```text
+Lowest estimated price
+Shortest trip
+Earliest departure
+Latest departure
+Destination
+```
 
-1. Primary selected sort field
-2. Connection count
-3. Total duration
-4. Initial departure instant
-5. Destination code
-6. Itinerary ID
-
-The same input dataset and criteria must return the same ordering.
+The UI must not offer a sort mode unsupported by the API.
 
 ---
 
-## 15. Estimated Pricing
+# Responsive Design
 
-The Phase 3 pricing service must calculate a configurable estimated amount per itinerary segment.
+The application must work on:
 
-Default configuration, unless changed through an accepted ADR:
+* Mobile phone widths
+* Tablet widths
+* Desktop widths
+
+Requirements:
+
+* No horizontal page overflow under expected content.
+* Filters remain usable on small screens.
+* Itinerary details remain readable.
+* Touch targets are at least 44 by 44 CSS pixels where practical.
+* The primary search action remains visible and usable.
+* Long airport and city names wrap safely.
+* Segment timelines do not rely on fixed desktop widths.
+
+---
+
+# Accessibility
+
+Phase 4 must meet WCAG 2.1 AA where practicable.
+
+Required behaviors:
+
+* Complete keyboard access
+* Semantic form labels
+* Accessible combobox behavior
+* Visible focus indicators
+* Screen-reader-compatible error messages
+* `aria-live` or equivalent announcements for dynamic search state where appropriate
+* No color-only status communication
+* Sufficient text contrast
+* Logical heading hierarchy
+* Semantic result-list structure
+* Accessible loading state
+* Accessible expanded and collapsed advanced filters
+* Descriptive button names
+* Correct association between validation errors and controls
+
+Automated accessibility checks must be supplemented by focused keyboard testing.
+
+---
+
+# Loading and Request Management
+
+The frontend must:
+
+* Show a loading state during searches.
+* Prevent accidental duplicate submissions.
+* Cancel or disregard stale autocomplete requests.
+* Avoid replacing newer search results with older responses.
+* Preserve existing criteria during retry.
+* Handle backend timeouts and network errors.
+* Avoid infinite retry loops.
+
+Phase 4 does not require background polling.
+
+---
+
+# API Client and Type Synchronization
+
+Use one documented approach:
+
+* Generate TypeScript types from OpenAPI, or
+* Maintain shared schemas with automated compatibility tests.
+
+Recommended:
 
 ```text
-Domestic estimated segment price: USD 14.91
-International estimation: disabled
-```
-
-Estimated domestic itinerary price:
-
-```text
-segment count × configured domestic estimated segment price
-```
-
-Examples:
-
-```text
-One domestic segment:
-1 × 14.91 = USD 14.91
-```
-
-```text
-Two domestic segments:
-2 × 14.91 = USD 29.82
+OpenAPI → generated frontend API types
 ```
 
 Requirements:
 
-* Use exact decimal arithmetic.
-* Include currency.
-* Include segment count.
-* Use price status `ESTIMATED`.
-* Include an explicit disclaimer.
-* Do not populate verified timestamps.
-* Do not claim current availability.
-* Do not estimate international pricing unless explicitly enabled by configuration.
-* Unknown or disabled estimates must remain `null` or use an explicit unknown state rather than zero.
+* Generated files must be reproducible.
+* Generation command must be documented.
+* CI must detect stale generated types.
+* Frontend code must not define conflicting copies of API enums.
+* Money, dates, optional values, and error types must be represented correctly.
 
 ---
 
-## 16. Price Summary Domain Model
+# Security Requirements
 
-The routing result must support a price summary containing at least:
+Phase 4 must include basic web and API safeguards:
 
-* Amount, when available
-* Currency
-* Status
-* Segment count
-* Base amount, when applicable
-* Taxes and fees, when applicable
-* Verified-at timestamp
-* Disclaimer
+* HTTPS-compatible configuration
+* Strict request validation
+* Parameterized database access
+* No raw SQL constructed from query input
+* Safe error messages
+* Configured CORS origins
+* No unrestricted production CORS wildcard
+* Basic secure HTTP headers
+* No API keys in frontend code
+* No credentials in logs
+* No unsanitized rendering of backend-provided HTML
+* No client-controlled database field selection
+* Bounded airport-search limits
+* Bounded routing request criteria
 
-Phase 3 expected values:
-
-```text
-status = ESTIMATED
-verified_at = null
-availability = NOT_CHECKED
-```
-
-The architecture must permit future verified pricing without changing the fundamental itinerary model.
-
----
-
-## 17. Availability State
-
-All Phase 3 itineraries must use:
-
-```text
-availability status = NOT_CHECKED
-```
-
-Phase 3 must not infer availability from schedule existence.
-
-A scheduled itinerary means only that the route is theoretically represented by the active schedule dataset.
-
-The engine must not use labels such as:
-
-* Available
-* Bookable
-* Confirmed
-* Live
-* Guaranteed
-
----
-
-## 18. Repository and Service Boundaries
-
-Recommended backend boundaries:
-
-```text
-domain/
-  search_criteria.py
-  flight_instance.py
-  itinerary.py
-  pricing.py
-  enums.py
-
-repositories/
-  schedule_repository.py
-
-services/
-  flight_instance_resolver.py
-  routing_service.py
-  connection_validator.py
-  itinerary_deduplicator.py
-  itinerary_filter.py
-  itinerary_sorter.py
-  price_estimator.py
-```
-
-Exact file names may vary.
-
-Requirements:
-
-* Database queries remain in repositories.
-* Routing rules remain in domain or service layers.
-* Provider-specific code remains outside routing services.
-* API and frontend concerns do not enter the routing engine.
-* Core services must be testable without an HTTP server.
-* Unit tests should not require external network access.
-
----
-
-# Search Algorithm Requirements
-
-## Direct Search Flow
-
-The direct-search flow must be equivalent to:
-
-```text
-Validate criteria
-↓
-Load applicable first-segment schedule definitions
-↓
-Resolve dated flight instances
-↓
-Reject invalid instances
-↓
-Apply first-segment filters
-↓
-Construct direct itineraries
-↓
-Attach estimated pricing
-↓
-Deduplicate
-↓
-Apply itinerary-level filters
-↓
-Sort deterministically
-↓
-Return results
-```
-
----
-
-## One-Stop Search Flow
-
-The one-stop flow must be equivalent to:
-
-```text
-Generate valid first segments
-↓
-Determine valid connection-airport local date range
-↓
-Load second-segment schedule candidates
-↓
-Resolve second-segment instances
-↓
-Validate chronology
-↓
-Validate connection duration
-↓
-Validate airport path
-↓
-Validate total duration
-↓
-Construct one-stop itinerary
-↓
-Attach estimated pricing
-↓
-Deduplicate
-↓
-Apply itinerary-level filters
-↓
-Sort deterministically
-↓
-Return results
-```
-
----
-
-## Reference Pseudocode
-
-```python
-def search_itineraries(
-    criteria: SearchCriteria,
-) -> list[Itinerary]:
-    criteria.validate()
-
-    first_definitions = schedule_repository.find_departures(
-        origin=criteria.origin,
-        operating_date=criteria.departure_date,
-    )
-
-    itineraries: list[Itinerary] = []
-
-    first_instances = resolve_applicable_instances(
-        first_definitions,
-        criteria.departure_date,
-    )
-
-    for first in first_instances:
-        if not first_segment_filter.matches(first, criteria):
-            continue
-
-        direct = itinerary_factory.build_direct(first)
-
-        if itinerary_filter.matches(direct, criteria):
-            itineraries.append(direct)
-
-        if criteria.max_connections == 0:
-            continue
-
-        candidate_dates = connection_date_service.candidate_dates(
-            first=first,
-            max_connection_minutes=criteria.max_connection_minutes,
-        )
-
-        second_definitions = schedule_repository.find_departures_for_dates(
-            origin=first.destination_code,
-            operating_dates=candidate_dates,
-        )
-
-        second_instances = resolve_candidate_instances(
-            second_definitions,
-            candidate_dates,
-        )
-
-        for second in second_instances:
-            validation = connection_validator.validate(
-                first=first,
-                second=second,
-                criteria=criteria,
-            )
-
-            if not validation.is_valid:
-                continue
-
-            itinerary = itinerary_factory.build_one_stop(
-                first=first,
-                second=second,
-            )
-
-            if itinerary_filter.matches(itinerary, criteria):
-                itineraries.append(itinerary)
-
-    itineraries = price_estimator.attach_estimates(itineraries)
-    itineraries = itinerary_deduplicator.deduplicate(itineraries)
-    itineraries = itinerary_sorter.sort(itineraries, criteria.sort)
-
-    return itineraries
-```
-
-This pseudocode is illustrative. The implementation may optimize query order, but must preserve behavior and testability.
+Full production rate limiting belongs to Phase 5 unless already implemented generically and correctly.
 
 ---
 
 # Performance Requirements
 
-Phase 3 is a backend-domain phase, but the routing engine must be designed for the eventual API latency target.
+Initial targets:
 
-Initial performance targets:
+## Airport Search
 
-* Direct search for a major origin: under 250 ms at p95 in a local integration benchmark
-* Direct plus one-stop search: under 1 second at p95 for the seeded test-scale dataset
-* No unbounded traversal
-* No loading of the entire global schedule dataset when indexed origin/date queries suffice
-* No per-result database query pattern that creates uncontrolled N+1 behavior
+```text
+p95 under 200 ms
+```
 
-The benchmark environment and dataset size must be documented.
+for the Phase 4 test dataset under local integration-test conditions.
 
-A benchmark failure does not automatically block Phase 3 unless it reveals an algorithmic or database-access defect. The final gate should use the agreed test dataset and environment.
+## Schedule Search API
 
----
+```text
+p95 under 1 second
+```
 
-# Required Database and Repository Behavior
+for direct plus one-stop searches under the agreed test dataset and environment.
 
-## Schedule Queries
+## Frontend
 
-The schedule repository must support queries equivalent to:
+* Search page should become interactive without unnecessary large client bundles.
+* Avoid loading the complete airport dataset into the browser.
+* Avoid one network request per itinerary.
+* Avoid rendering unbounded result lists without a documented result limit.
+* Production build must not emit critical bundle or runtime failures.
 
-* Applicable departures from one origin on one date
-* Applicable departures from one origin over a bounded set of dates
-* Airport metadata retrieval for involved airports
-* Active source-version filtering
-
-Routing queries must not mix inactive schedule versions into results.
-
----
-
-## Active Dataset Rule
-
-Unless an accepted ADR defines otherwise, the routing engine must use only the active schedule dataset.
-
-It must not combine records from prior inactive versions.
-
-Tests must verify that activating a new schedule version changes routing results without retaining obsolete active flights.
+A result cap may be introduced if documented and consistently applied.
 
 ---
 
-## Read-Only Routing
+# Result Limits
 
-Phase 3 routing operations must be read-only with respect to schedule data.
+The API must define a bounded maximum result count or a pagination strategy.
 
-The routing engine may create in-memory domain objects but must not mutate:
+Phase 4 may use a documented maximum result count.
 
-* Airports
-* Routes
-* Scheduled flights
-* Data-source versions
+Recommended initial behavior:
 
-Persistence of search events, itinerary caches, or availability snapshots belongs to later phases unless explicitly approved.
+```text
+Default maximum results: 250
+```
+
+Requirements:
+
+* Result truncation must be disclosed.
+* Sorting must occur before truncation.
+* The same inputs must produce the same truncated set.
+* The frontend must display a warning when results are truncated.
+
+Pagination may be deferred unless required by realistic result volume.
+
+---
+
+# Logging and Request IDs
+
+API requests must include or generate a request ID.
+
+The API should make it possible to log:
+
+* Request ID
+* Endpoint
+* HTTP status
+* Duration
+* Origin
+* Departure date
+* Maximum connections
+* Result count
+* Active schedule version
+* Error code
+
+The frontend should include the request ID in unexpected-error diagnostic text where available.
+
+Do not log:
+
+* Secrets
+* Full request headers
+* User credentials
+* Raw stack traces in user-facing responses
 
 ---
 
 # Required Tests
 
-## Unit Tests
+## API Unit Tests
 
-Phase 3 must include unit tests for:
+Phase 4 must include tests for:
 
-### Search Criteria
+* Airport query normalization
+* Airport result ranking
+* Airport limit validation
+* Airport inactive-record exclusion
+* Search-request conversion into domain criteria
+* API response serialization
+* Money serialization
+* Enum serialization
+* Error mapping
+* Request-ID propagation
+* No-result response
+* Schedule-status serialization
 
-* Airport-code normalization
-* Maximum-connections validation
+---
+
+## API Integration Tests
+
+Required integration tests:
+
+* `GET /api/v1/airports` exact code match
+* Airport city match
+* Airport-name match
+* Case-insensitive airport search
+* Airport result limit
+* Invalid airport-search limit
+* Search with direct results
+* Search with one-stop results
+* Search with filters
+* Search with sort
+* Search with no results
+* Invalid origin
+* Invalid departure date
+* Date outside schedule coverage
+* Invalid connection range
+* Conflicting geography filters
+* No active schedule
+* Schedule-status endpoint
+* Consistency between schedule-status source and search source
+* Timezone offsets preserved
+* Estimated pricing serialized correctly
+* Availability remains `NOT_CHECKED`
+* OpenAPI schema generation
+
+Integration tests must use synthetic imported schedule fixtures.
+
+---
+
+## Frontend Unit and Component Tests
+
+Required tests:
+
+* Search form required fields
+* Airport combobox loading state
+* Airport combobox result selection
+* Airport combobox keyboard navigation
+* Airport combobox no-results state
+* Airport combobox request error
+* Date-range validation
 * Connection-range validation
-* Duration validation
-* Price validation
-* Domestic/international mutual exclusion
-* Time-filter parsing
-
-### Flight Instances
-
-* Same-timezone flight
-* Eastbound timezone change
-* Westbound timezone change
-* Arrival-day offset zero
-* Arrival-day offset one
-* Positive duration validation
-* Invalid negative duration
-* Missing timezone
-* Invalid timezone
-* Effective-start boundary
-* Effective-end boundary
-* Weekday applicability
-
-### Direct Itineraries
-
-* Valid one-segment itinerary
-* Connection count equals zero
-* Layover duration equals zero
-* Origin-to-origin rejection
-* Deterministic itinerary ID
-* Stable repeated execution
-
-### One-Stop Itineraries
-
-* Valid same-day connection
-* Valid cross-midnight connection
-* Connection in a different timezone
-* Minimum connection boundary
-* Maximum connection boundary
-* Below-minimum rejection
-* Above-maximum rejection
-* Return-to-origin rejection
-* Repeated-connection-airport rejection
-* Duplicate-segment rejection
-* Invalid second-segment operating date
-* Total-duration rejection
-
-### Duration Calculations
-
-* Airborne duration sum
-* Layover duration sum
-* Total-duration invariant
-* Multi-timezone elapsed duration
-* After-midnight elapsed duration
-
-### Deduplication
-
-* Exact duplicate collapse
-* Stable winner selection
-* Different departure times preserved
-* Different flight numbers preserved
-* Different connection airports preserved
-* Different dates preserved
-* Conflicting duplicate handling
-
-### Filters
-
-* Direct-only
-* Departure-after boundary
-* Departure-before boundary
-* Arrival-before boundary
-* Maximum-duration boundary
-* Maximum-price boundary
-* Domestic-only
-* International-only
-* Combined filters
-
-### Sorting
-
-* Price sort
-* Duration sort
-* Earliest-departure sort
-* Latest-departure sort
-* Destination sort
-* Stable tie-breakers
-* Repeatable ordering
-
-### Pricing
-
-* One-segment estimate
-* Two-segment estimate
-* Decimal precision
-* Disabled international estimate
-* Null or unknown estimate handling
-* Estimated status
-* Required disclaimer
-* Availability remains not checked
+* Geography-filter conflict
+* URL serialization
+* URL deserialization
+* Invalid URL fallback
+* Loading-state rendering
+* Error-state rendering
+* Empty-state rendering
+* Direct itinerary card
+* One-stop itinerary card
+* Cross-midnight itinerary display
+* Estimated price label
+* Availability-not-checked label
+* Schedule-freshness display
+* Result truncation warning, when applicable
+* Frontier handoff wording
 
 ---
 
-## Integration Tests
+## End-to-End Tests
 
-Phase 3 must include integration tests using PostgreSQL and the Phase 2 import pipeline for:
+Phase 4 must include focused end-to-end tests for:
 
-* Search against the active schedule version
-* Direct results from an origin/date query
-* One-stop results from an origin/date query
-* Inactive source records excluded
-* New active source version changes results
-* Effective-date filtering
-* Weekday filtering
-* Cross-midnight connection
-* Timezone-aware durations
-* Duplicate database records deduplicated safely
-* Domestic and international filtering
-* Sorting against persisted schedule data
-* No-result search
-* Invalid-origin handling at the service boundary
-* Search using a clean migrated database populated through fixtures
+1. Load the search page.
+2. Search for an airport by code.
+3. Select an airport using the keyboard.
+4. Select a supported date.
+5. Submit a direct-only search.
+6. View direct results.
+7. Enable one-stop search.
+8. Apply maximum estimated price.
+9. Change sorting.
+10. Refresh and preserve URL state.
+11. Open a shared results URL.
+12. Display a no-results state.
+13. Display a backend validation error.
+14. Display a network or server error.
+15. Use the primary workflow at a mobile viewport.
+16. Complete the primary workflow using keyboard-only navigation.
+
+E2E tests must use stable synthetic data.
+
+They must not call Frontier or any external live provider.
 
 ---
 
-## Property-Based Tests
+## Accessibility Tests
 
-Use property-based testing for core invariants where practical.
+Required checks:
 
-Required properties include:
+* Automated accessibility scan of search page
+* Automated accessibility scan of populated results page
+* Keyboard navigation through airport selector
+* Keyboard submission
+* Focus placement after validation failure
+* Screen-reader-accessible status messages
+* No color-only price or availability state
+* Accessible advanced-filter disclosure
 
-* Every returned itinerary has one or two segments.
-* Connection count equals segment count minus one.
-* Segments are ordered chronologically.
-* Every segment arrival occurs after its departure.
-* Every connection departure occurs after the preceding arrival.
-* No airport repeats in an itinerary.
-* Final destination differs from original origin.
-* Total duration is positive.
-* Total duration equals airborne plus layover duration.
-* Estimated domestic price is monotonic with segment count under fixed configuration.
-* Equivalent itinerary inputs produce identical IDs.
-* Deduplication is idempotent.
-* Sorting is deterministic.
+---
+
+## Contract Tests
+
+Required contract checks:
+
+* OpenAPI generation succeeds.
+* Frontend generated types match current OpenAPI.
+* CI fails when generated types are stale.
+* Public enum values remain stable.
+* Search response matches the documented schema.
+* API errors match the documented error schema.
 
 ---
 
 # Required Test Fixtures
 
-Fixtures must include at least:
+Phase 4 fixtures must include:
 
-1. A direct domestic route.
-2. A direct international route.
-3. A valid one-stop domestic itinerary.
-4. A valid one-stop international itinerary.
-5. A connection exactly at the minimum boundary.
-6. A connection exactly at the maximum boundary.
-7. A connection one minute below minimum.
-8. A connection one minute above maximum.
-9. A connection crossing midnight.
-10. A westbound timezone example.
-11. An eastbound timezone example.
-12. A daylight-saving transition example.
-13. A return-to-origin route.
-14. A repeated-airport route.
-15. Duplicate schedule records.
-16. Overlapping effective schedule records.
-17. Two schedule-source versions with different active flights.
-18. A result set with sorting ties.
-19. A flight with arrival-day offset one.
-20. A route exceeding maximum total duration.
+1. Multiple airports matching the same city text.
+2. An exact airport-code match.
+3. An inactive airport.
+4. A direct itinerary.
+5. A one-stop itinerary.
+6. A cross-midnight itinerary.
+7. Domestic and international destinations.
+8. Multiple itineraries with sort ties.
+9. A no-result search.
+10. A schedule range boundary.
+11. A source version with known freshness metadata.
+12. A result set exceeding the configured result cap, when truncation is implemented.
 
-Fixtures must remain clearly labeled as synthetic test data and must not be represented as current Frontier inventory.
-
----
-
-# Daylight-Saving-Time Tests
-
-Tests must cover at least:
-
-* A flight on a spring-forward date
-* A flight on a fall-back date
-* A route between a DST-observing airport and a non-DST airport
-* An ambiguous local time where the timezone library requires explicit handling
-* A nonexistent local time during spring transition
-
-The implementation must define how ambiguous or nonexistent source times are handled.
-
-Recommended rule:
-
-* Reject ambiguous or nonexistent schedule instances unless the source provides enough information to resolve them deterministically.
-
-Any alternative requires an accepted ADR and explicit tests.
-
----
-
-# Error and Diagnostic Requirements
-
-Routing failures must distinguish between:
-
-* Invalid search criteria
-* Unknown origin airport
-* Origin with invalid timezone metadata
-* No active schedule dataset
-* Date outside active schedule coverage
-* No applicable departures
-* Invalid schedule record
-* No valid itineraries after filtering
-* Internal routing invariant failure
-
-Expected no-result cases must not be treated as internal server errors.
-
-The service layer should return typed results or typed domain exceptions suitable for later API translation.
-
----
-
-# Logging and Observability
-
-Phase 3 search operations must make it possible to record:
-
-* Search origin
-* Departure date
-* Maximum connections
-* Number of first-segment candidates
-* Number of second-segment candidates
-* Number of rejected connections
-* Number of deduplicated itineraries
-* Final result count
-* Search duration
-* Active source version
-* Failure category
-
-Sensitive or user-identifying data must not be logged.
-
-Structured logging may be implemented directly or prepared through a clean service interface if full observability belongs to a later phase.
-
----
-
-# Configuration Requirements
-
-Phase 3 must define documented configuration for at least:
-
-```text
-DEFAULT_MIN_CONNECTION_MINUTES
-DEFAULT_MAX_CONNECTION_MINUTES
-DEFAULT_MAX_TOTAL_DURATION_MINUTES
-DOMESTIC_ESTIMATED_SEGMENT_PRICE_USD
-INTERNATIONAL_ESTIMATION_ENABLED
-MAX_SUPPORTED_CONNECTIONS
-```
-
-Requirements:
-
-* Defaults must be centralized.
-* Environment values must be validated.
-* Invalid configuration must fail clearly at startup or service initialization.
-* Tests must not depend on uncontrolled developer-machine environment variables.
-* Test configuration must be explicit.
+Fixtures must be synthetic and clearly labeled.
 
 ---
 
 # Required Verification Commands
 
-The authoritative commands must be recorded here once confirmed by the repository.
+The exact commands must be updated to match the repository.
 
-At minimum, Phase 3 must have commands equivalent to:
+At minimum, Phase 4 must provide commands equivalent to:
 
 ```bash
 # Install
 pnpm install --frozen-lockfile
 <locked Python dependency installation command>
 
-# Static checks
+# Infrastructure and database
+docker compose up -d --wait
+alembic upgrade head
+<fixture import command>
+
+# Static verification
 make format-check
 make lint
 make typecheck
 
-# Database and fixtures
-docker compose up -d --wait
-alembic upgrade head
-<Phase 2 fixture import command>
-
-# Tests
+# Backend tests
 <backend unit-test command>
 <backend integration-test command>
-<property-based test command or included suite>
-<routing-focused test command>
+<API contract-test command>
 
-# Performance
-<routing benchmark or performance-test command>
+# Frontend tests
+pnpm --filter web test
+pnpm --filter web type-check
+pnpm --filter web lint
 
-# Build
+# End-to-end tests
+pnpm --filter web test:e2e
+
+# Accessibility
+pnpm --filter web test
+pnpm --filter web test:e2e
+
+# API contract and generated types
+cd apps/api && ./.venv/bin/python scripts/export_openapi.py
+cd apps/web && pnpm gen:types
+cd apps/web && pnpm check:types
+
+# Builds
 make build
+pnpm --filter web build
 
 # CI parity
-<the same commands invoked by remote CI>
+<the exact commands invoked by remote CI>
 ```
 
-Replace placeholders with actual working repository commands before Phase 3 is marked complete.
+Replace placeholders before Phase 4 is marked complete.
 
-No agent may claim a command passed unless it was actually executed successfully.
+No agent may claim a command passed unless it was actually run.
 
 ---
 
 # Task Status Rules
 
-At the start of Phase 3:
+At the start of Phase 4:
 
 * `FND-001` through `FND-008` remain `COMPLETE`.
 * `DAT-001` through `DAT-006` remain `COMPLETE`.
-* `RTE-001` through `RTE-007` begin as `NOT STARTED`.
-* All `API-*`, `WEB-*`, `OPS-*`, and future `QA-*` tasks remain `NOT STARTED`, except for infrastructure or test tasks explicitly completed and verified in prior phases.
-* A routing task may be marked `IN PROGRESS` only while active implementation exists.
-* A routing task may be marked `COMPLETE` only when its implementation and required tests pass.
-* Partial algorithm implementation is not completion.
-* Unit tests without integration behavior do not complete the corresponding task.
-* Implementation without boundary and timezone tests does not complete the corresponding task.
-* A future API or UI task must not be marked complete merely because a temporary internal interface exists.
+* `RTE-001` through `RTE-007` remain `COMPLETE`.
+* `API-001` through `API-003` begin as `NOT STARTED`.
+* `WEB-001` through `WEB-004` begin as `NOT STARTED`.
+* `OPS-*`, availability-provider, AI, and later product tasks remain `NOT STARTED`, except for generic infrastructure explicitly completed and verified in earlier phases.
+
+A Phase 4 task may be marked `COMPLETE` only when:
+
+* The implementation exists.
+* Required tests pass.
+* Public contracts are documented.
+* Frontend behavior is connected to the real Phase 4 API.
+* No mock-only or disconnected implementation remains in the production path.
+
+A static UI that does not call the search API does not complete a web task.
+
+An endpoint returning fixture constants instead of routing-engine results does not complete an API task.
 
 ---
 
 # Allowed Change Areas
 
-Phase 3 may modify:
+Phase 4 may modify:
 
 ```text
 apps/api/**
-data/**
+apps/web/**
+packages/**
 docs/**
+data/**
 infrastructure/**
 .github/workflows/**
 TASKS.md
@@ -1257,12 +1352,17 @@ README.md
 Makefile
 docker-compose.yml
 pyproject.toml
+package.json
+pnpm-workspace.yaml
 lockfiles
 ```
 
-Frontend files under `apps/web/**` should be modified only when required to preserve builds or generic developer configuration.
+Changes to Phase 3 routing behavior require:
 
-Phase 3 must not introduce the product search interface or itinerary-results UI.
+* A demonstrated Phase 4 integration defect
+* A regression test
+* Confirmation that the change preserves the Phase 3 contract
+* An ADR when architecture or documented semantics change
 
 ---
 
@@ -1272,18 +1372,19 @@ Human approval is required before:
 
 * Modifying the PRD
 * Modifying the TDD’s core architecture
-* Increasing maximum supported connections above one
-* Adding round-trip search
-* Adding multi-city search
-* Adding live Frontier availability
+* Changing public API paths
+* Changing public API enum values
+* Removing documented response fields
+* Changing money serialization policy
+* Changing timezone semantics
+* Adding live availability
 * Adding browser automation
+* Adding Frontier authentication
 * Adding an LLM dependency
-* Changing the active schedule-version rule
-* Changing timezone-resolution policy
-* Changing money representation
-* Persisting generated itineraries
-* Introducing a new database technology
-* Adding a paid external provider
+* Adding user accounts
+* Increasing routing above one connection
+* Adding round-trip search
+* Adding a paid external service
 * Changing the active-phase task list
 * Enabling production deployment
 
@@ -1291,147 +1392,187 @@ Approved deviations must be recorded in `DECISIONS.md`.
 
 ---
 
-# Phase 3 Completion Gate
+# Phase 4 Completion Gate
 
-Phase 3 is complete only when all of the following are true.
+Phase 4 is complete only when all applicable items below are satisfied.
 
 ## Scope
 
-* [ ] Only RTE-001 through RTE-007 are evaluated as Phase 3 deliverables.
-* [ ] No public search API is required by Phase 3 CI.
-* [ ] No production frontend search interface is required.
-* [ ] No live availability provider has been added.
-* [ ] No browser automation has been added.
-* [ ] No LLM is used in routing or pricing.
+* [ ] Only API-001 through API-003 and WEB-001 through WEB-004 are evaluated as Phase 4 deliverables.
+* [ ] No live availability provider is required.
+* [ ] No Frontier browser automation is present.
+* [ ] No LLM is used for routing, pricing, or availability.
+* [ ] No user account or payment implementation is required.
 * [ ] Future-phase tasks remain factually marked.
 
-## Search Criteria
+## Airport API
 
-* [ ] Search-criteria domain model exists.
-* [ ] Invalid criteria are rejected deterministically.
-* [ ] Maximum connections is limited to zero or one.
-* [ ] Connection-duration constraints are validated.
-* [ ] Geographic filter conflicts are rejected.
+* [ ] Airport endpoint exists under `/api/v1`.
+* [ ] Exact code matching works.
+* [ ] City and name matching work.
+* [ ] Search is case-insensitive.
+* [ ] Result ranking is deterministic.
+* [ ] Inactive airports are excluded.
+* [ ] Limits are validated and bounded.
+* [ ] Airport API integration tests pass.
 
-## Flight Instances
+## Search API
 
-* [ ] Scheduled flights resolve into timezone-aware dated instances.
-* [ ] Effective-date rules are correct.
-* [ ] ISO weekday rules are correct.
-* [ ] Arrival-day offset is correct.
-* [ ] Computed durations are positive.
-* [ ] Invalid timezone data is handled explicitly.
-
-## Direct Routing
-
-* [ ] Direct itineraries are generated correctly.
-* [ ] Direct itineraries contain exactly one segment.
-* [ ] Direct itinerary duration values are correct.
-* [ ] Origin-to-origin results are excluded.
-* [ ] Direct itinerary IDs are deterministic.
-
-## One-Stop Routing
-
-* [ ] Valid one-stop itineraries are generated.
-* [ ] Same-day connections work.
-* [ ] Cross-midnight connections work.
-* [ ] Timezone-different connections work.
-* [ ] Invalid short connections are rejected.
-* [ ] Invalid long connections are rejected.
-* [ ] Return-to-origin routes are rejected.
-* [ ] Repeated-airport routes are rejected.
-* [ ] Total-duration limits are enforced.
-* [ ] Second-segment operating dates are correct.
-
-## Duration Invariants
-
-* [ ] Every segment duration is positive.
-* [ ] Every layover duration is valid.
-* [ ] Total airborne duration is correct.
-* [ ] Total layover duration is correct.
-* [ ] Total duration equals airborne plus layover duration.
-
-## Deduplication
-
-* [ ] Equivalent itineraries collapse deterministically.
-* [ ] Distinct itineraries remain distinct.
-* [ ] Duplicate handling is documented.
-* [ ] Deduplication is idempotent.
-* [ ] Conflicting duplicates are not selected arbitrarily.
-
-## Filtering
-
-* [ ] Connection filtering works.
-* [ ] Departure-time filters work.
-* [ ] Arrival-time filter works.
-* [ ] Maximum-duration filter works.
-* [ ] Maximum-price filter works.
-* [ ] Domestic-only filter works.
-* [ ] International-only filter works.
-* [ ] Combined filters work.
-
-## Sorting
-
-* [ ] Price sorting works.
-* [ ] Duration sorting works.
-* [ ] Earliest-departure sorting works.
-* [ ] Latest-departure sorting works.
-* [ ] Destination sorting works.
-* [ ] Tie-breakers are stable.
-* [ ] Repeated searches produce the same ordering.
-
-## Estimated Pricing
-
-* [ ] One-segment estimated pricing is correct.
-* [ ] Two-segment estimated pricing is correct.
-* [ ] Exact decimal arithmetic is used.
-* [ ] Estimated status is explicit.
-* [ ] Verified timestamp is absent.
+* [ ] Search endpoint exists under `/api/v1`.
+* [ ] Request validation is complete.
+* [ ] Domain search criteria are used.
+* [ ] Phase 3 routing engine is called.
+* [ ] Direct results serialize correctly.
+* [ ] One-stop results serialize correctly.
+* [ ] Timezone offsets are preserved.
+* [ ] Estimated pricing is serialized safely.
 * [ ] Availability remains `NOT_CHECKED`.
-* [ ] International estimate behavior is explicit.
-* [ ] Disclaimer is present.
+* [ ] No-result searches return a stable response.
+* [ ] Typed warnings are returned.
+* [ ] Internal exceptions do not leak.
 
-## Timezone and DST
+## Schedule Status
 
-* [ ] Eastbound timezone test passes.
-* [ ] Westbound timezone test passes.
-* [ ] Cross-midnight test passes.
-* [ ] Spring-forward test passes.
-* [ ] Fall-back test passes.
-* [ ] Ambiguous or nonexistent local-time behavior is documented and tested.
+* [ ] Schedule-status endpoint exists.
+* [ ] Active source metadata is correct.
+* [ ] Route and flight counts are correct.
+* [ ] Search and status use the same active source version.
+* [ ] No-active-schedule behavior is tested.
 
-## Repository and Database
+## Error Contract
 
-* [ ] Only the active schedule version is queried.
-* [ ] Routing operations do not mutate schedule data.
-* [ ] Phase 2 migrations remain valid.
-* [ ] A clean database upgrades to head.
-* [ ] Phase 2 fixtures can seed routing tests.
+* [ ] Error schema is consistent.
+* [ ] Stable error codes are used.
+* [ ] Request IDs are present.
+* [ ] Validation errors are distinct from internal errors.
+* [ ] Stack traces and SQL details are not exposed.
+* [ ] Frontend renders expected and unexpected errors appropriately.
+
+## OpenAPI and Types
+
+* [ ] OpenAPI generation succeeds.
+* [ ] Phase 4 endpoints appear in OpenAPI.
+* [ ] Frontend API types are synchronized.
+* [ ] CI detects stale generated types.
+* [ ] Public enum values are stable.
+* [ ] Contract tests pass.
+
+## Search Form
+
+* [ ] Airport combobox is connected to the API.
+* [ ] Airport combobox works with keyboard input.
+* [ ] Date selection works.
+* [ ] Supported schedule range is enforced.
+* [ ] Connection selection works.
+* [ ] Advanced filters work.
+* [ ] Invalid combinations are prevented or clearly reported.
+* [ ] Form submission produces normalized URL state.
+
+## Results Page
+
+* [ ] Loading state works.
+* [ ] Success state works.
+* [ ] Empty state works.
+* [ ] Validation-error state works.
+* [ ] Network-error state works.
+* [ ] Retry works.
+* [ ] Search summary is shown.
+* [ ] Result count is shown.
+* [ ] Freshness metadata is shown.
+* [ ] Availability warning is shown.
+
+## Itinerary Cards
+
+* [ ] Direct itineraries render correctly.
+* [ ] One-stop itineraries render correctly.
+* [ ] Segment order is correct.
+* [ ] Connection airport is shown.
+* [ ] Layover duration is shown.
+* [ ] Cross-midnight dates are clear.
+* [ ] Local departure and arrival times are clear.
+* [ ] Total duration is shown.
+* [ ] Estimated price is labeled honestly.
+* [ ] Availability is shown as not checked.
+* [ ] Frontier handoff wording is non-misleading.
+
+## Filters and Sorting
+
+* [ ] Connection filter works.
+* [ ] Time filters work.
+* [ ] Duration filter works.
+* [ ] Estimated-price filter works.
+* [ ] Domestic-only works.
+* [ ] International-only works.
+* [ ] Sort modes map to backend values.
+* [ ] URL state updates correctly.
+* [ ] Refresh preserves criteria.
+* [ ] Shared URL restores criteria.
+* [ ] Back and Forward navigation work.
+* [ ] Invalid URL parameters are handled safely.
+
+## Responsive Design
+
+* [ ] Primary workflow works at mobile width.
+* [ ] Primary workflow works at desktop width.
+* [ ] No unintended horizontal overflow exists.
+* [ ] Filters remain usable on mobile.
+* [ ] Long airport names render safely.
+* [ ] Itinerary segments remain readable.
+
+## Accessibility
+
+* [ ] Search form is keyboard accessible.
+* [ ] Airport combobox is accessible.
+* [ ] Validation errors are associated with controls.
+* [ ] Dynamic loading and result states are announced appropriately.
+* [ ] Statuses do not rely on color alone.
+* [ ] Focus indicators are visible.
+* [ ] Automated accessibility tests pass.
+* [ ] Keyboard-only E2E workflow passes.
 
 ## Tests
 
-* [ ] Routing unit tests pass.
-* [ ] Routing integration tests pass.
-* [ ] Property-based invariants pass.
-* [ ] No test relies on network access.
-* [ ] Synthetic fixtures are clearly labeled.
+* [ ] API unit tests pass.
+* [ ] API integration tests pass.
+* [ ] Frontend unit and component tests pass.
+* [ ] End-to-end tests pass.
+* [ ] Accessibility checks pass.
+* [ ] Contract tests pass.
+* [ ] Tests use synthetic data.
+* [ ] No test calls Frontier or an external live provider.
 * [ ] Defect fixes include regression tests.
 
 ## Performance
 
-* [ ] Direct routing benchmark meets the agreed target or has an accepted exception.
-* [ ] Direct plus one-stop routing benchmark meets the agreed target or has an accepted exception.
-* [ ] No uncontrolled N+1 query pattern exists.
-* [ ] No unbounded graph traversal exists.
+* [ ] Airport-search performance meets the agreed target or has an accepted exception.
+* [ ] Search API performance meets the agreed target or has an accepted exception.
+* [ ] No request is made per itinerary card.
+* [ ] No complete airport dataset is shipped unnecessarily to the browser.
+* [ ] Result count is bounded or paginated.
+* [ ] Truncation is disclosed when applicable.
+
+## Security
+
+* [ ] Request inputs are strictly validated.
+* [ ] CORS origins are configured.
+* [ ] No production wildcard CORS is used.
+* [ ] Secure HTTP headers are configured.
+* [ ] Secrets are absent from frontend bundles.
+* [ ] Backend errors do not expose internal data.
+* [ ] User-controlled text is rendered safely.
+* [ ] Airport and result limits are bounded.
 
 ## Verification
 
 * [ ] Formatting passes.
 * [ ] Lint passes.
-* [ ] Type checking passes.
-* [ ] Backend unit tests pass.
-* [ ] Backend integration tests pass.
-* [ ] Property-based tests pass.
+* [ ] Backend type checking passes.
+* [ ] Frontend type checking passes.
+* [ ] Backend tests pass.
+* [ ] Frontend tests pass.
+* [ ] E2E tests pass.
+* [ ] Accessibility tests pass.
+* [ ] OpenAPI and type-generation checks pass.
 * [ ] Production builds pass.
 * [ ] Docker Compose validates.
 * [ ] PostgreSQL and Redis become healthy.
@@ -1439,18 +1580,18 @@ Phase 3 is complete only when all of the following are true.
 
 ## Review
 
-* [ ] No unresolved P0 finding exists within Phase 3 scope.
-* [ ] No unresolved P1 finding exists within Phase 3 scope.
+* [ ] No unresolved P0 finding exists within Phase 4 scope.
+* [ ] No unresolved P1 finding exists within Phase 4 scope.
 * [ ] `TASKS.md` reflects actual status.
 * [ ] Working tree is clean.
-* [ ] All Phase 3 changes are committed.
+* [ ] All Phase 4 changes are committed.
 * [ ] Any required ADR has been accepted.
 
 ---
 
 # Binary Release-Gate Rule
 
-The final Phase 3 reviewer must return exactly one primary verdict:
+The final Phase 4 reviewer must return exactly one primary verdict:
 
 * `PASS`
 * `FAIL`
@@ -1459,16 +1600,18 @@ A `FAIL` may contain only reproducible blockers against this document.
 
 The reviewer must not:
 
-* Require a public search endpoint.
-* Require airport autocomplete.
-* Require a results page.
-* Require exact GoWild taxes or fees.
-* Require live availability.
+* Require live GoWild availability.
+* Require exact taxes or fees.
+* Require Frontier authentication.
+* Require browser automation.
+* Require user accounts.
+* Require alerts.
+* Require weather or hotel data.
 * Require round-trip search.
-* Require more than one connection.
 * Require natural-language search.
-* Require optional refactors.
-* Treat future enhancements as Phase 3 blockers.
+* Require production deployment.
+* Require optional visual redesigns.
+* Treat subjective styling preferences as blockers.
 
 A `PASS` requires every mandatory completion-gate item to be satisfied or explicitly marked not applicable through an accepted ADR.
 
@@ -1479,7 +1622,7 @@ A `PASS` requires every mandatory completion-gate item to be satisfied or explic
 Every blocking finding must include:
 
 * Exact file and location
-* Exact failed command or test
+* Exact failed command, request, or test
 * Expected behavior
 * Actual behavior
 * Relevant section of this document
@@ -1487,11 +1630,11 @@ Every blocking finding must include:
 
 A reviewer must not block the phase using:
 
-* Pure style preference
-* Speculative future risk without reproduction
+* A subjective style preference
 * An excluded future requirement
-* A task status that contradicts this active-phase contract
-* A proposed architectural rewrite when a bounded fix exists
+* A speculative concern without reproduction
+* A task status that conflicts with this contract
+* A broad redesign where a bounded correction exists
 
 ---
 
@@ -1499,36 +1642,43 @@ A reviewer must not block the phase using:
 
 The active phase is defined by this file.
 
-The presence of partial future-phase code does not make that code part of Phase 3.
+The presence of partial future-phase code does not make that code part of Phase 4.
 
 `TASKS.md` records implementation status but cannot expand the active phase.
 
 The PRD and TDD define the complete product but do not make every future requirement part of the current phase.
 
-When a future-phase implementation is incomplete and interferes with Phase 3, remove or isolate it rather than completing it.
+When incomplete future-phase code interferes with Phase 4, remove or isolate it rather than completing it.
 
 ---
 
-# Phase 3 Exit Procedure
+# Phase 4 Exit Procedure
 
 When the completion gate passes:
 
 1. Confirm all remote CI checks are green.
-2. Confirm `RTE-001` through `RTE-007` are marked `COMPLETE`.
-3. Confirm later tasks remain factually marked.
-4. Commit all final code and documentation changes. **Commit `PHASE.md` itself** so
-   the phase tag captures the exact contract in force (the file is otherwise untracked).
-5. Tag the repository. The completed-phase git tag is the durable record of each
-   phase contract (the tagged commit's committed `PHASE.md` is that contract):
+2. Confirm `API-001` through `API-003` are marked `COMPLETE`.
+3. Confirm `WEB-001` through `WEB-004` are marked `COMPLETE`.
+4. Confirm later tasks remain factually marked.
+5. Commit all final code and documentation changes.
+6. Tag the repository:
 
 ```bash
-git add PHASE.md
-git tag -a phase-3-complete -m "Phase 3 complete: deterministic routing engine (RTE-001 through RTE-007)"
-git push origin phase-3-complete
+git tag phase-4-complete
+git push origin phase-4-complete
 ```
 
-6. Replace `PHASE.md` in place with the approved Phase 4 contract. This project does
-   **not** archive prior contracts under `docs/phases/`; the `phase-N-complete` tag
-   preserves each contract at the commit it governed. Recover an earlier contract with
-   `git show phase-N-complete:PHASE.md` (valid for any phase whose `PHASE.md` was
-   committed before tagging).
+7. Archive this file:
+
+```bash
+cp PHASE.md docs/phases/PHASE-4-COMPLETE.md
+```
+
+8. Commit the archived contract:
+
+```bash
+git add docs/phases/PHASE-4-COMPLETE.md
+git commit -m "docs: archive completed phase 4 contract"
+```
+
+9. Replace `PHASE.md` with the approved Phase 5 contract.

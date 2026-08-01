@@ -83,3 +83,58 @@ Use this file whenever either agent proposes deviating from the TDD.
 **Approved by:** Project owner (delegated instruction to proceed with Phase 3)
 
 ---
+
+## ADR-006: API money is serialized as a decimal string
+
+**Status:** Accepted
+**Date:** 2026-08-01
+**Context:** Phase 3 represents money as `Decimal` (never float) in `PriceSummary.amount`. The Phase 4 contract (§Serialization Rules) requires money to be "serialized as a decimal-safe string unless the project has an accepted numeric serialization policy," and its `POST /api/v1/search` response example shows `"amount": "14.91"`. JSON numbers are IEEE-754 floats and would reintroduce the exact rounding error the money invariant forbids.
+**Decision:** All monetary amounts in public API responses are serialized as decimal strings (e.g. `"14.91"`), produced from the backend `Decimal` via `str()`. An unknown/disabled estimate (`amount is None`) serializes as JSON `null`, never `"0"` or `0`. `currency` is a 3-letter uppercase string. The frontend treats these as opaque display strings and never performs price arithmetic (pricing stays in the backend). This is the project's accepted numeric serialization policy for money.
+**Consequences:** No float rounding across the wire; the generated TypeScript type for `amount` is `string | null`. Sorting/filtering by price remains backend-only (the API already applies `max_price` and `PRICE` sort before serialization). Tested by asserting response `amount` is a string equal to the expected decimal and that `null` is preserved for UNKNOWN estimates.
+**PRD/TDD sections affected:** TDD §8.7 (PriceSummary), §15 (pricing); PHASE.md (Phase 4) §Serialization Rules, API-002 response
+**Approved by:** Project owner (delegated instruction to proceed with Phase 4)
+
+---
+
+## ADR-007: Phase 4 availability envelope is always NOT_CHECKED / LOW
+
+**Status:** Accepted
+**Date:** 2026-08-01
+**Context:** The Phase 4 search response (API-002) includes an `availability` object `{status, checked_at, source, confidence}` with `confidence` in {LOW, MEDIUM, HIGH}. Phase 3 only carries `Itinerary.availability_status` (`AvailabilityStatus.NOT_CHECKED`); there is no `ConfidenceLevel` type and no live availability provider (explicitly excluded from Phase 4). The contract forbids claiming a scheduled itinerary is available/bookable.
+**Decision:** Every Phase 4 itinerary serializes `availability` as `{"status": "NOT_CHECKED", "checked_at": null, "source": null, "confidence": "LOW"}`. `confidence` is a fixed public enum string; `"LOW"` is the honest value when nothing has been verified. The API must never emit `AVAILABLE` for a scheduled itinerary in Phase 4. The frontend renders "Availability not checked" and must not use a green/"available" affordance. A future availability phase may populate real values without changing the field shape.
+**Consequences:** Stable response shape ready for later verified availability; honest user communication (PHASE.md §Honest User Communication). Tested by asserting every result's availability is NOT_CHECKED with null checked_at/source and LOW confidence.
+**PRD/TDD sections affected:** TDD §8.8 (AvailabilitySummary), §2.2 (confidence levels); PHASE.md (Phase 4) API-002, §Honest User Communication, WEB-003 Availability Display
+**Approved by:** Project owner (delegated instruction to proceed with Phase 4)
+
+---
+
+## ADR-008: search_id, generated_at, warnings, and booking_url are response-layer constructs
+
+**Status:** Accepted
+**Date:** 2026-08-01
+**Context:** The Phase 3 `SearchResult` (`itineraries`, `active_source_name`, `active_source_version`, `diagnostics`) does not carry the `search_id`, `generated_at`, structured `warnings[]`, `data_freshness`, or per-itinerary `booking_url` that the API-002 response example requires.
+**Decision:** The API layer (not the routing engine) synthesizes these: `search_id` = a per-request uuid4 (stringified); `generated_at` = a timezone-aware "now" serialized ISO-8601 with offset; `data_freshness` is built from `get_active_schedule_status(db)`; `warnings` is a list of typed `{code, message}` objects — always includes `AVAILABILITY_NOT_CHECKED`, includes `NO_MATCHING_ITINERARIES` when `results` is empty, and `RESULTS_TRUNCATED` when the result cap (ADR: 250) is applied. `booking_url` is `null` in Phase 4 (no stable Frontier deep link is claimed; the frontend renders a non-committal "Check on Frontier" handoff). The routing engine is unchanged.
+**Consequences:** Keeps the deterministic engine pure while the HTTP layer owns presentation/metadata. `warnings` being objects (not bare strings) supersedes the older TDD §11 example per the Phase 4 contract's Requirement Authority. Tested via response-shape and no-result/truncation warning assertions.
+**PRD/TDD sections affected:** TDD §11 (search response example — superseded for warnings shape); PHASE.md (Phase 4) API-002 response, §No-Result Behavior, §Result Limits
+**Approved by:** Project owner (delegated instruction to proceed with Phase 4)
+
+---
+
+## ADR-009: HTTP status mapping and error envelope for the public API
+
+**Status:** Accepted
+**Date:** 2026-08-01
+**Context:** Phase 4 requires one consistent error schema `{error:{code,message,details?,request_id}}` with a fixed set of stable codes, request IDs on every response, and validation errors distinguished from internal errors without leaking stack traces/SQL. Phase 3 raises typed `RoutingError` subclasses each carrying a `RoutingErrorCode`; Pydantic raises `RequestValidationError` before the engine runs.
+**Decision:** A single error envelope is emitted by FastAPI exception handlers. Mapping:
+- Pydantic `RequestValidationError` → HTTP 422, code `INVALID_REQUEST`, `details` = per-field errors.
+- `UnknownOriginError` (`UNKNOWN_ORIGIN`) → HTTP 422, code `INVALID_AIRPORT`.
+- `DateOutsideScheduleRangeError` (`DATE_OUTSIDE_SCHEDULE_RANGE`) → HTTP 422, code `DATE_OUTSIDE_SCHEDULE_RANGE`, `details` = supported range.
+- `InvalidTimezoneError` / `InvalidCriteriaError` → HTTP 422, code `INVALID_REQUEST`.
+- `NoActiveScheduleError` (`NO_ACTIVE_SCHEDULE`) → HTTP 503, code `NO_ACTIVE_SCHEDULE`.
+- Any other/unexpected exception → HTTP 500, code `INTERNAL_ERROR`, generic message (no internals).
+Every response carries an `X-Request-ID` header and the same id in the error body's `request_id`. A valid search with zero itineraries is **HTTP 200** (not an error). Airport-search validation (bad `limit`, empty query) → 422 `INVALID_REQUEST`.
+**Consequences:** Frontend can branch on stable codes to render expected vs. unexpected errors. No SQL/stack traces reach clients. Public error codes are a stable enum surfaced in OpenAPI. Tested per code path (invalid origin, bad date, out-of-range, conflicting geo filters, unsupported sort, no active schedule, no-result-200, request-id propagation).
+**PRD/TDD sections affected:** TDD §24 (error model & codes); PHASE.md (Phase 4) §Public API Error Contract, §No-Result Behavior
+**Approved by:** Project owner (delegated instruction to proceed with Phase 4)
+
+---

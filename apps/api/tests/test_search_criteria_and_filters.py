@@ -104,6 +104,22 @@ def test_connection_range_validated():
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("min_connection_minutes", 19),
+        ("min_connection_minutes", 361),
+        ("max_connection_minutes", 19),
+        ("max_connection_minutes", 361),
+        ("max_total_duration_minutes", 59),
+        ("max_total_duration_minutes", 1441),
+    ],
+)
+def test_numeric_criteria_bounds(field, value):
+    with pytest.raises(ValidationError):
+        SearchCriteria(origin="ATL", departure_date=date(2026, 8, 4), **{field: value})
+
+
 def test_geographic_conflict_rejected():
     with pytest.raises(ValidationError):
         SearchCriteria(
