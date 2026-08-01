@@ -65,6 +65,19 @@ def test_direct_itinerary_shape():
     assert it.itinerary_id.startswith("iti_")
 
 
+def test_direct_itinerary_rejects_origin_destination_self_loop():
+    f = inst(
+        "ATL",
+        "ATL",
+        datetime(2026, 8, 4, 9, 0),
+        datetime(2026, 8, 4, 12, 0),
+        tz_dep=ET,
+        tz_arr=ET,
+    )
+    with pytest.raises(ValueError, match="origin and destination must differ"):
+        direct(f)
+
+
 def test_deterministic_itinerary_id_stable():
     f = inst("ATL", "DEN", datetime(2026, 8, 4, 9, 35), datetime(2026, 8, 4, 11, 5), fid=SOURCE)
     assert direct(f).itinerary_id == direct(f).itinerary_id

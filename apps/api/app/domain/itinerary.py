@@ -62,6 +62,8 @@ class Itinerary:
     def __post_init__(self) -> None:
         if not self.segments:
             raise ValueError("itinerary must have at least one segment")
+        if self.origin_code == self.destination_code:
+            raise ValueError("itinerary origin and destination must differ")
         # Segments must be sequential and chronological (PHASE.md property invariants).
         for i, seg in enumerate(self.segments, start=1):
             if seg.sequence != i:

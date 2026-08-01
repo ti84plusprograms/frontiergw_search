@@ -8,7 +8,7 @@ Read-only with respect to schedule data (PHASE.md §Read-Only Routing).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -105,10 +105,14 @@ def search_itineraries(
         codes.add(f.destination_code)
         mid_codes.add(f.destination_code)
     if criteria.max_connections >= 1 and cfg.max_supported_connections >= 1:
+        # Arrival-day offsets are constrained to 0..2. Prefetch destinations for
+        # every possible connection operating date (arrival date plus one day),
+        # while generate_itineraries still applies the exact per-flight dates.
+        second_candidate_dates = [
+            criteria.departure_date + timedelta(days=offset) for offset in range(4)
+        ]
         for mid in sorted(mid_codes):
-            for second, _d in repo.find_departures_for_dates(
-                mid, [criteria.departure_date, criteria.departure_date]
-            ):
+            for second, _d in repo.find_departures_for_dates(mid, second_candidate_dates):
                 codes.add(second.destination_code)
     airports = repo.airports_by_code(codes)
 
@@ -133,15 +137,25 @@ def search_itineraries(
     deduped = deduplicate(filtered)
     ordered = sort_itineraries(deduped, criteria.sort)
 
+    diagnostic_counts = {
+        "first_segment_candidates": diagnostics.first_segment_candidates,
+        "second_segment_candidates": diagnostics.second_segment_candidates,
+        "rejected_connections": diagnostics.rejected_connections,
+        "missing_airport_metadata": diagnostics.missing_airport_metadata,
+        "resolution_skipped": sum(diagnostics.resolution_skips.values()),
+        "deduplicated": len(filtered) - len(deduped),
+        "result_count": len(ordered),
+    }
+    diagnostic_counts.update(
+        {
+            f"resolution_skip_{reason}": count
+            for reason, count in diagnostics.resolution_skips.items()
+        }
+    )
+
     return SearchResult(
         itineraries=ordered,
         active_source_name=str(status["source"]),
         active_source_version=str(status["version"]),
-        diagnostics={
-            "first_segment_candidates": diagnostics.first_segment_candidates,
-            "second_segment_candidates": diagnostics.second_segment_candidates,
-            "rejected_connections": diagnostics.rejected_connections,
-            "deduplicated": len(filtered) - len(deduped),
-            "result_count": len(ordered),
-        },
+        diagnostics=diagnostic_counts,
     )
