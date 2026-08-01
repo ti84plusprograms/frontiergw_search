@@ -2,50 +2,52 @@
 
 ## Phase
 
-Phase 4 — Search API and Web Interface
+Phase 5 — Reliability, Security, Caching, Observability, and Release Hardening
 
 ## Objective
 
-Expose the completed deterministic routing engine through a stable HTTP API and build the initial user-facing web application.
+Harden the completed search product so it can operate reliably under realistic development, staging, and early production workloads.
 
-At the end of Phase 4, a user must be able to:
+At the end of Phase 5, the system must:
 
-* Search for an origin airport by code, city, or airport name.
-* Select a supported departure date.
-* Configure direct or one-stop routing.
-* Apply supported time, duration, geography, and estimated-price filters.
-* Submit a search through the web interface.
-* View deterministic itinerary results.
-* Inspect flight segments, connections, local times, durations, estimated prices, availability state, and data freshness.
-* Sort results.
-* Preserve search state in the URL.
-* Refresh or share a search URL without losing criteria.
-* Understand that schedule results and estimated prices are not verified GoWild availability.
-* Open Frontier to confirm availability and complete booking.
+* Cache eligible search and reference-data responses safely.
+* Remain functional when Redis is unavailable.
+* Apply bounded and configurable request-rate limits.
+* Produce structured logs with request correlation.
+* Collect useful application and search metrics.
+* Report unexpected errors through the configured monitoring platform.
+* Provide actionable health and readiness information.
+* Enforce baseline web and API security controls.
+* Run comprehensive end-to-end, accessibility, timezone, contract, and performance tests.
+* Validate deployment artifacts and operational procedures.
+* Support a controlled staging deployment.
+* Provide a documented release and rollback process.
 
-Phase 4 must use the routing engine completed in Phase 3. The frontend must not duplicate routing, timing, pricing, or availability logic.
+Phase 5 does not add live Frontier availability, Frontier authentication, browser automation, AI recommendations, user accounts, or payment functionality.
 
 ---
 
 # Included Tasks
 
-Only the following tasks are included in Phase 4:
+Only the following tasks are included in Phase 5:
 
-* API-001 — Implement airport search endpoint
-* API-002 — Implement itinerary search endpoint
-* API-003 — Implement schedule-status endpoint
-* WEB-001 — Build search form
-* WEB-002 — Build results list
-* WEB-003 — Build itinerary card
-* WEB-004 — Add filters, sorting, and URL state
+* OPS-001 — Add caching
+* OPS-002 — Add structured logging
+* OPS-003 — Add rate limiting
+* OPS-004 — Add monitoring and error reporting
+* QA-001 — Add end-to-end tests
+* QA-002 — Add routing and API performance tests
+* QA-003 — Add timezone and edge-case validation suite
 
-No other task is part of the active phase unless this file is explicitly amended and approved.
+Phase 5 also includes the minimum security, deployment validation, and operational documentation required to complete those tasks.
+
+No additional product feature is part of the active phase unless this file is explicitly amended and approved.
 
 ---
 
 # Explicitly Excluded
 
-The following functionality is not part of Phase 4:
+The following functionality is not part of Phase 5:
 
 * Live GoWild availability
 * Exact Frontier taxes and fees
@@ -53,35 +55,32 @@ The following functionality is not part of Phase 4:
 * Frontier credential storage
 * Frontier browser automation
 * Official Frontier NDC integration
-* Third-party live shopping integration
+* Third-party live flight shopping
 * Flight booking
 * Payment processing
-* Saved searches
 * User accounts
-* Notifications or alerts
+* Saved searches
+* Notifications
+* Price alerts
+* Natural-language search
+* LLM-based destination ranking
+* Weather integration
+* Hotel or rental-car pricing
 * Round-trip optimization
 * Multi-city routing
 * More than one connection
-* Flexible-date or calendar-grid search
-* Natural-language search
-* LLM-generated routes or prices
-* AI destination recommendations
-* Weather integration
-* Hotel pricing
-* Rental-car pricing
 * Native mobile applications
-* Production-scale caching
-* Production rate limiting
-* Full observability implementation
-* Production deployment
+* Production-scale multi-region deployment
+* Automatic merging to the production branch
+* Automatic production release without human approval
 
-Partial implementation of an excluded feature must not be required by Phase 4 builds, tests, or CI.
+Partial implementation of an excluded feature must not be required by Phase 5 builds, tests, CI, staging deployment, or monitoring.
 
 ---
 
 # Requirement Authority
 
-Use this precedence when evaluating Phase 4 work:
+Use this precedence when evaluating Phase 5 work:
 
 1. `PHASE.md` defines the exact active scope and completion gate.
 2. `DECISIONS.md` defines approved architectural decisions.
@@ -93,1159 +92,1597 @@ Use this precedence when evaluating Phase 4 work:
 
 An incorrectly completed future task must be corrected to its factual status. Do not implement an excluded feature merely to preserve an inaccurate task status.
 
-When a future-state example in the PRD or TDD includes functionality excluded from Phase 4, this active-phase contract controls the current implementation.
+Phase 5 must preserve all accepted behavior and contracts from Phases 1 through 4 unless a regression fix or accepted ADR requires a change.
 
 ---
 
 # Core Design Rules
 
-## Backend Authority
+## Deterministic Pass/Fail Gates
 
-The backend is authoritative for:
+Agents and reviewers must not determine completion based on subjective confidence.
 
-* Request validation
-* Airport resolution
-* Schedule coverage validation
-* Route generation
-* Connection validation
-* Timezone calculations
-* Duration calculations
-* Estimated pricing
-* Availability status
-* Filtering
-* Sorting
+Phase 5 completion depends on:
+
+* Executable tests
+* Reproducible commands
+* Measured results
+* Verified configuration
+* Green remote CI
+* Successful staging validation
+* Documented exceptions through accepted ADRs
+
+---
+
+## Graceful Degradation
+
+Optional infrastructure must not become a single point of failure.
+
+In particular:
+
+* Redis failure must not make schedule search unavailable.
+* Monitoring-provider failure must not make the application unavailable.
+* Analytics failure must not fail user requests.
+* Metrics-export failure must not change search results.
+* Log-export failure must not corrupt application behavior.
+
+PostgreSQL remains a required dependency for schedule-backed search.
+
+---
+
+## Preserve Deterministic Search
+
+Caching, rate limiting, logging, tracing, and monitoring must not change:
+
+* Route validity
 * Itinerary identity
-* Data-freshness metadata
+* Timezone calculations
+* Price estimates
+* Filter behavior
+* Sorting behavior
+* Public API semantics
 
-The frontend must not independently recalculate or override these values.
-
-Client-side sorting may be used only when it exactly follows the server-defined ordering contract and does not alter price, duration, availability, or route validity.
-
----
-
-## Deterministic Search
-
-The API must call the deterministic routing engine completed in Phase 3.
-
-The API and frontend must not use an LLM to:
-
-* Generate destinations
-* Generate routes
-* Infer flight schedules
-* Calculate prices
-* Validate connections
-* Determine availability
-* Repair malformed routing data
+The same uncached search inputs against the same active schedule dataset must produce the same search result content as the corresponding cached response, excluding permitted request-specific metadata.
 
 ---
 
-## Honest User Communication
+## Security by Default
 
-The interface must clearly distinguish:
+Phase 5 must use restrictive, explicit configuration.
 
-* Scheduled itinerary
-* Estimated price
-* Availability not checked
-* Stale or unavailable schedule data
-* No results
-* Internal or provider errors
+Avoid:
 
-The interface must not claim:
-
-* A flight is bookable
-* A GoWild seat is available
-* A displayed price is guaranteed
-* A user can book for the estimated amount
-* Schedule presence confirms inventory
-
-Use language such as:
-
-```text
-Estimated GoWild cost
-```
-
-```text
-Availability not checked
-```
-
-```text
-Check on Frontier
-```
-
-Avoid language such as:
-
-```text
-Available now
-```
-
-```text
-Book for $14.91
-```
-
-```text
-Confirmed GoWild fare
-```
+* Production wildcard CORS
+* Unbounded request sizes
+* Unbounded query limits
+* Secrets in source control
+* Secrets in client bundles
+* Sensitive request logging
+* Raw stack traces in API responses
+* Unauthenticated administrative write endpoints
+* Automatic destructive operations
+* Broad service-account permissions
 
 ---
 
-# Required Phase 4 Behavior
+# Required Phase 5 Behavior
 
-## 1. API Versioning
+# OPS-001 — Caching
 
-All public Phase 4 API endpoints must use the versioned base path:
+## 1. Cache Architecture
+
+Redis is the preferred shared cache.
+
+The cache layer must be isolated behind an application interface.
+
+Recommended service boundary:
 
 ```text
-/api/v1
+services/
+  cache_service.py
+
+repositories/
+  cached_schedule_repository.py
+
+core/
+  cache_keys.py
+  cache_config.py
 ```
 
-Required endpoints:
+Exact file names may differ.
 
-```text
-GET  /api/v1/health
-GET  /api/v1/airports
-POST /api/v1/search
-GET  /api/v1/schedules/status
-```
-
-The existing health endpoint may remain unchanged if it already complies with the repository contract.
+Application services must not depend directly on provider-specific Redis client behavior.
 
 ---
 
-# API-001 — Airport Search Endpoint
+## 2. Cacheable Data
 
-## Endpoint
+Phase 5 may cache:
 
-```http
-GET /api/v1/airports
-```
+* Airport autocomplete results
+* Schedule-status responses
+* Deterministic itinerary-search responses
+* Active schedule-version metadata
+* Negative or no-result search responses
+* Generated OpenAPI-independent reference metadata where appropriate
 
-## Query Parameters
+Phase 5 must not cache:
 
-Required or supported parameters:
+* Raw secrets
+* Authentication credentials
+* Full request headers
+* User-specific sensitive data
+* Unvalidated requests
+* Internal exception responses
+* Mutable database sessions
+* Live availability, because it is not yet implemented
 
-```text
-query
-limit
-```
+---
 
-Recommended request:
+## 3. Search Cache Key
 
-```http
-GET /api/v1/airports?query=atl&limit=10
-```
+The search-cache key must be based on normalized, result-defining inputs.
 
-## Required Search Behavior
+It must include at least:
 
-Airport search must support normalized matching against:
+* Cache schema version
+* Routing algorithm version
+* Active schedule-source identifier or version
+* Origin
+* Departure date
+* Maximum connections
+* Connection-duration limits
+* Time filters
+* Maximum total duration
+* Maximum price
+* Geography filters
+* Sort mode
+* Result-limit or pagination parameters
+* Estimated-pricing configuration version
 
-* IATA airport code
-* Airport name
-* City
-* State or region, when available
-
-Matching must be:
-
-* Case-insensitive
-* Whitespace-trimmed
-* Deterministic
-* Limited to active airports
-* Bounded by a maximum result count
-
-Recommended priority:
-
-1. Exact airport-code match
-2. Airport-code prefix match
-3. Exact city match
-4. City prefix match
-5. Airport-name match
-6. State or region match
-
-Stable tie-breakers must be documented.
-
-## Validation Rules
-
-* Empty or whitespace-only queries must either return a validated error or a documented bounded default result. Returning all airports without a strict limit is not allowed.
-* `limit` must have a documented default.
-* `limit` must have a documented maximum.
-* Invalid limits must return HTTP 422 or the repository’s standard validation status.
-* Airport codes must be serialized in uppercase.
-* Inactive airports must not appear.
-
-Recommended defaults:
+Recommended format:
 
 ```text
-Default limit: 10
-Maximum limit: 25
-Minimum query length: 1
+search:v1:{schedule_version}:{algorithm_version}:{criteria_hash}
 ```
 
-## Response Model
+The criteria hash must use canonical serialization.
+
+The cache key must not depend on:
+
+* Request ID
+* Header order
+* JSON field order
+* User-agent string
+* Frontend URL formatting
+* Unrelated environment values
+
+---
+
+## 4. Cache Response Semantics
+
+A cache hit must preserve the public search contract.
+
+Request-specific fields may be regenerated, including:
+
+* Request ID
+* Response-generated timestamp, if its semantics are explicitly defined
+* Cache-status metadata
+
+The application must not incorrectly present an old generation timestamp as a fresh routing computation.
+
+Recommended optional metadata:
 
 ```json
 {
-  "items": [
-    {
-      "code": "ATL",
-      "name": "Hartsfield-Jackson Atlanta International Airport",
-      "city": "Atlanta",
-      "state_or_region": "Georgia",
-      "country_code": "US",
-      "timezone": "America/New_York"
-    }
-  ],
-  "count": 1
-}
-```
-
-The response must not expose internal database identifiers unless they are intentionally part of the public contract.
-
----
-
-# API-002 — Itinerary Search Endpoint
-
-## Endpoint
-
-```http
-POST /api/v1/search
-Content-Type: application/json
-```
-
-## Request Model
-
-The request must support at least:
-
-```json
-{
-  "origin": "ATL",
-  "departure_date": "2026-08-04",
-  "max_connections": 1,
-  "min_connection_minutes": 45,
-  "max_connection_minutes": 240,
-  "depart_after": "06:00",
-  "depart_before": "22:00",
-  "arrive_before": null,
-  "max_total_duration_minutes": 720,
-  "max_price": 50,
-  "domestic_only": false,
-  "international_only": false,
-  "sort": "PRICE"
-}
-```
-
-Optional fields may be omitted and replaced with validated server defaults.
-
-## Request Validation
-
-The API must reject:
-
-* Invalid airport-code formatting
-* Unknown or inactive origin airport
-* Invalid date formatting
-* Date outside active schedule coverage
-* Maximum connections outside `0` or `1`
-* Nonpositive connection durations
-* Maximum connection below minimum connection
-* Invalid 24-hour time values
-* Nonpositive maximum duration
-* Negative maximum price
-* Domestic-only and international-only both enabled
-* Unsupported sort modes
-* Unknown request fields when strict-schema mode is selected
-
-The API must not begin routing before request validation succeeds.
-
-## Search Service Integration
-
-The endpoint must:
-
-1. Validate the HTTP request.
-2. Convert the request into the Phase 3 search-criteria domain model.
-3. Identify the active schedule source.
-4. Call the deterministic routing service.
-5. Convert domain itineraries into public response models.
-6. Include schedule-freshness metadata.
-7. Return typed warnings.
-8. Avoid leaking internal exceptions or provider-specific structures.
-
-## Response Model
-
-The response must contain at least:
-
-```json
-{
-  "search_id": "7dfce768-cc8c-4a21-a4cb-fad6f4a10b97",
-  "origin": {
-    "code": "ATL",
-    "city": "Atlanta",
-    "timezone": "America/New_York"
-  },
-  "departure_date": "2026-08-04",
-  "generated_at": "2026-08-03T21:00:00-04:00",
-  "data_freshness": {
-    "schedule_source": "static-schedule",
-    "schedule_version": "2026-08-01",
-    "schedule_updated_at": "2026-08-01T04:00:00Z",
-    "schedule_effective_start": "2026-08-01",
-    "schedule_effective_end": "2026-10-31",
-    "availability_checked_at": null
-  },
-  "result_count": 1,
-  "results": [
-    {
-      "itinerary_id": "iti_1f8b...",
-      "origin": {
-        "code": "ATL",
-        "city": "Atlanta",
-        "country_code": "US"
-      },
-      "destination": {
-        "code": "DEN",
-        "city": "Denver",
-        "country_code": "US"
-      },
-      "departure_at": "2026-08-04T09:35:00-04:00",
-      "arrival_at": "2026-08-04T11:05:00-06:00",
-      "connection_count": 0,
-      "total_duration_minutes": 210,
-      "airborne_duration_minutes": 210,
-      "total_layover_minutes": 0,
-      "segments": [
-        {
-          "sequence": 1,
-          "carrier": "F9",
-          "flight_number": "1234",
-          "origin": "ATL",
-          "destination": "DEN",
-          "departure_at": "2026-08-04T09:35:00-04:00",
-          "arrival_at": "2026-08-04T11:05:00-06:00",
-          "duration_minutes": 210
-        }
-      ],
-      "price": {
-        "amount": "14.91",
-        "currency": "USD",
-        "status": "ESTIMATED",
-        "segment_count": 1,
-        "verified_at": null,
-        "disclaimer": "Estimated GoWild cost. Final taxes, fees, and availability must be confirmed with Frontier."
-      },
-      "availability": {
-        "status": "NOT_CHECKED",
-        "checked_at": null,
-        "source": null,
-        "confidence": "LOW"
-      },
-      "booking_url": null
-    }
-  ],
-  "warnings": [
-    {
-      "code": "AVAILABILITY_NOT_CHECKED",
-      "message": "GoWild availability has not been verified."
-    }
-  ]
-}
-```
-
-## Serialization Rules
-
-* Datetimes must be ISO 8601 strings with timezone offsets.
-* Money should be serialized as a decimal-safe string unless the project has an accepted numeric serialization policy.
-* Enum values must be stable public strings.
-* Internal ORM models must not be serialized directly.
-* Fields must not change based on whether results are empty.
-* `results` must be an empty array when no itineraries match.
-* `result_count` must equal the length of `results`.
-
-## No-Result Behavior
-
-A valid search with no matching itinerary must return a successful response unless the repository has an accepted alternative contract.
-
-Recommended behavior:
-
-```http
-HTTP 200
-```
-
-```json
-{
-  "result_count": 0,
-  "results": [],
-  "warnings": [
-    {
-      "code": "NO_MATCHING_ITINERARIES",
-      "message": "No scheduled itineraries matched the selected criteria."
-    }
-  ]
-}
-```
-
-No-result searches must not be returned as HTTP 500.
-
----
-
-# API-003 — Schedule Status Endpoint
-
-## Endpoint
-
-```http
-GET /api/v1/schedules/status
-```
-
-## Required Response
-
-```json
-{
-  "active": true,
-  "source": "static-frontier-schedule",
-  "version": "2026-08-01",
-  "retrieved_at": "2026-08-01T04:00:00Z",
-  "effective_start": "2026-08-01",
-  "effective_end": "2026-10-31",
-  "route_count": 120,
-  "scheduled_flight_count": 1830
-}
-```
-
-When no active schedule exists:
-
-* Return a stable typed response or documented API error.
-* Do not return a raw database error.
-* Do not claim that search data is available.
-
-The endpoint must report the same active source version used by routing searches.
-
----
-
-# Public API Error Contract
-
-All API errors must use a consistent schema.
-
-```json
-{
-  "error": {
-    "code": "DATE_OUTSIDE_SCHEDULE_RANGE",
-    "message": "The departure date is outside the active schedule range.",
-    "details": {
-      "supported_start": "2026-08-01",
-      "supported_end": "2026-10-31"
-    },
-    "request_id": "req_123"
+  "cache": {
+    "status": "HIT",
+    "stored_at": "2026-08-01T14:00:00Z",
+    "age_seconds": 42
   }
 }
 ```
 
-Required error categories include:
-
-```text
-INVALID_REQUEST
-INVALID_AIRPORT
-INVALID_DEPARTURE_DATE
-DATE_OUTSIDE_SCHEDULE_RANGE
-NO_ACTIVE_SCHEDULE
-INVALID_CONNECTION_RANGE
-INVALID_TIME_FILTER
-INVALID_PRICE_FILTER
-UNSUPPORTED_SORT
-DATABASE_UNAVAILABLE
-INTERNAL_ERROR
-```
-
-## Error Requirements
-
-* Every error response must include a stable error code.
-* Every error response must include a request ID.
-* Expected validation errors must not include stack traces.
-* Internal errors must not expose SQL, secrets, filesystem paths, or Python internals.
-* The frontend must render expected errors differently from unexpected failures.
-* API validation status codes must be documented and tested.
+If this metadata is added, it becomes part of the documented public contract and requires contract tests.
 
 ---
 
-# OpenAPI Contract
+## 5. Cache TTLs
 
-FastAPI must expose:
+TTL values must be configurable.
+
+Recommended initial defaults:
 
 ```text
-/docs
-/openapi.json
+AIRPORT_SEARCH_CACHE_TTL_SECONDS=21600
+SCHEDULE_STATUS_CACHE_TTL_SECONDS=300
+SEARCH_CACHE_TTL_SECONDS=1800
+SAME_DAY_SEARCH_CACHE_TTL_SECONDS=300
+NO_RESULT_CACHE_TTL_SECONDS=300
+CACHE_ERROR_BACKOFF_SECONDS=30
 ```
 
-Phase 4 must:
+These values may be changed through configuration or an accepted ADR.
 
-* Generate a valid OpenAPI schema.
-* Include all Phase 4 endpoints.
-* Include request and response models.
-* Include error-response documentation where practical.
-* Detect accidental OpenAPI contract changes in CI or review.
-* Keep frontend types synchronized with the API contract.
-
-The OpenAPI document should be checked into the repository or generated deterministically through a documented command.
+Same-day and near-departure searches should generally use shorter TTLs than distant searches.
 
 ---
 
-# Frontend Architecture
+## 6. Cache Invalidation
 
-## Required Routes
+Relevant search caches must be invalidated when:
 
-Minimum frontend routes:
+* A new schedule version becomes active.
+* Airport metadata changes materially.
+* Routing algorithm version changes.
+* Search response schema changes.
+* Pricing-estimator configuration changes.
+* A critical routing defect requires forced invalidation.
 
-```text
-/
-```
+Acceptable invalidation strategies include:
 
-Search interface and initial state.
+* Versioned cache keys
+* Namespace invalidation
+* Explicit key deletion
+* Short TTL plus version changes
 
-```text
-/results
-```
-
-Search results represented through URL parameters.
-
-```text
-/data-status
-```
-
-Optional but recommended view of active schedule metadata.
-
-An `/about` page is optional and must not block Phase 4.
+Versioned keys are preferred over scanning and deleting all Redis keys.
 
 ---
 
-# WEB-001 — Search Form
+## 7. Redis Failure Behavior
 
-## Required Fields
+When Redis is unavailable:
 
-The search form must include:
+* Airport search must query PostgreSQL directly.
+* Schedule status must query PostgreSQL directly.
+* Itinerary search must execute normally without cache.
+* The request may be slower but must remain correct.
+* The error must be logged and measured.
+* The API must not return HTTP 500 solely because Redis is unavailable.
+* Redis reconnection must not require an application restart where the selected client supports recovery.
 
-* Origin airport
-* Departure date
-* Maximum connections
+A cache timeout must be bounded.
 
-The form must support access to these additional filters:
-
-* Minimum connection duration
-* Maximum connection duration
-* Departure after
-* Departure before
-* Arrival before
-* Maximum total duration
-* Maximum estimated price
-* Domestic only
-* International only
-* Sort mode
-
-Advanced filters may be placed in a collapsible section.
-
-## Airport Combobox
-
-The airport selector must:
-
-* Query `GET /api/v1/airports`.
-* Support keyboard navigation.
-* Support mouse or touch selection.
-* Display airport code and city.
-* Distinguish airports with similar city names.
-* Debounce requests.
-* Cancel or ignore stale requests.
-* Show loading state.
-* Show no-match state.
-* Show error state.
-* Store the selected airport code, not arbitrary free text.
-* Prevent submission when no valid airport is selected.
-
-Recommended display:
+Recommended timeout:
 
 ```text
-ATL — Atlanta, Georgia
+CACHE_OPERATION_TIMEOUT_MS=100
 ```
 
-## Date Picker
-
-The date picker must:
-
-* Use a valid date input or accessible calendar component.
-* Reject dates before the supported search period.
-* Reject dates after active schedule coverage.
-* Use the selected calendar date without timezone shifting.
-* Preserve the date after navigation or refresh.
-* Present the supported date range where practical.
-
-## Form Validation
-
-Client-side validation should improve usability but must not replace backend validation.
-
-The form must prevent obviously invalid combinations, including:
-
-* No selected origin
-* No departure date
-* Maximum connection below minimum
-* Negative price
-* Domestic and international both enabled
-
-All backend validation errors must still be handled.
-
-## Submission
-
-Submitting the form must:
-
-1. Serialize normalized search state.
-2. Navigate to `/results`.
-3. Preserve criteria in URL parameters.
-4. Trigger the backend search.
-5. Avoid duplicate submissions while a request is active.
-6. Allow browser Back and Forward navigation.
+The exact value must be configurable.
 
 ---
 
-# WEB-002 — Results List
+## 8. Cache Stampede Protection
 
-The results page must support:
+For frequently repeated searches, the system must avoid uncontrolled duplicate recomputation where practical.
 
-* Loading state
-* Successful result state
-* Empty-result state
-* Validation-error state
-* Network-error state
-* Unexpected-error state
-* Retry action
-* Search summary
-* Result count
-* Data-freshness display
-* Warning display
-* Sorting controls
-* Filter controls
-* Responsive layout
+Acceptable initial strategies:
 
-Results must be rendered using itinerary cards or an equivalent accessible list structure.
+* Short-lived distributed lock
+* Single-flight request coalescing
+* Probabilistic early refresh
+* Small TTL jitter
 
-The page must not require a map.
+A complex distributed-lock system is not mandatory if measured load does not justify it. The selected behavior must be documented.
 
-## Search Summary
-
-The page must show:
-
-* Origin
-* Departure date
-* Direct or one-stop allowance
-* Active filters
-* Sort mode
-* Result count
-
-## Freshness Information
-
-The page must display or make accessible:
-
-* Schedule source
-* Schedule version
-* Schedule update time
-* Supported schedule range
-* Availability-not-checked warning
-
-The interface must not hide the distinction between schedule freshness and availability freshness.
+The application must not hold a cache lock while waiting indefinitely.
 
 ---
 
-# WEB-003 — Itinerary Card
+## 9. Cache Tests
 
-Each itinerary card must display at least:
+Required tests include:
 
-* Destination city
-* Destination airport code
-* Departure local time
-* Arrival local time
-* Departure date
-* Arrival date when different
-* Timezone context or offset where needed
-* Connection count
-* Total duration
-* Airborne duration
-* Total layover duration
-* Segment flight numbers
-* Segment origin and destination
-* Connection airport
-* Connection duration
-* Estimated price
-* Price status
-* Availability status
-* Data disclaimer
-* Frontier handoff action
-
-## Direct Itinerary
-
-A direct itinerary must visibly indicate:
-
-```text
-Direct
-```
-
-It must not display a false connection or layover.
-
-## One-Stop Itinerary
-
-A one-stop itinerary must display:
-
-* Connection airport
-* Layover duration
-* Both segments in chronological order
-* Any date change between segments
-* Total journey duration
-
-## Price Display
-
-Recommended:
-
-```text
-Estimated: $29.82
-```
-
-Required supporting text:
-
-```text
-Final taxes, fees, and GoWild availability must be confirmed with Frontier.
-```
-
-Do not use styling or wording that makes the estimate appear guaranteed.
-
-## Availability Display
-
-Phase 4 expected state:
-
-```text
-Availability not checked
-```
-
-Do not display a green “available” state for scheduled itineraries.
-
-## Booking Handoff
-
-Use an action such as:
-
-```text
-Check on Frontier
-```
-
-Where a stable deep link is unavailable, the action may:
-
-* Open Frontier’s booking page.
-* Present the exact origin, destination, date, and flight details needed for manual confirmation.
-* Copy the search details.
-
-The action must not claim to preserve the estimated fare.
+* Cache miss executes routing.
+* Cache hit avoids duplicate routing execution.
+* Equivalent normalized requests share a cache key.
+* Materially different requests do not share a cache key.
+* Active schedule-version change invalidates prior results.
+* Pricing-configuration change invalidates prior results.
+* No-result responses are cached using the configured TTL.
+* Redis timeout falls back to uncached execution.
+* Redis connection failure falls back to uncached execution.
+* Corrupt cache value is ignored and replaced.
+* Cache response matches uncached response semantics.
+* Request IDs are not reused incorrectly from cached data.
+* Cache keys do not contain sensitive data.
 
 ---
 
-# WEB-004 — Filters, Sorting, and URL State
+# OPS-002 — Structured Logging
 
-## URL State
+## 1. Log Format
 
-Search criteria must be represented in URL query parameters.
+Backend application logs must use a structured machine-readable format in staging and production.
 
-Example:
+Recommended format:
 
-```text
-/results?origin=ATL&date=2026-08-04&connections=1&sort=PRICE
+```json
+{
+  "timestamp": "2026-08-01T15:10:42.123Z",
+  "level": "INFO",
+  "event": "search.completed",
+  "request_id": "req_123",
+  "method": "POST",
+  "path": "/api/v1/search",
+  "status_code": 200,
+  "duration_ms": 241,
+  "origin": "ATL",
+  "departure_date": "2026-08-04",
+  "max_connections": 1,
+  "result_count": 18,
+  "cache_status": "HIT",
+  "schedule_version": "2026-08-01"
+}
 ```
 
-Supported filter parameters should be documented.
-
-Requirements:
-
-* Refresh preserves search state.
-* Shared URLs reproduce the same request criteria.
-* Browser Back and Forward work.
-* Invalid URL values are handled safely.
-* URL state is normalized.
-* Default values may be omitted when behavior remains unambiguous.
-* Arbitrary URL values must not bypass backend validation.
-
-## Filter Behavior
-
-Changing filters must use one clearly documented strategy:
-
-1. Submit a new backend search, or
-2. Apply a client-side filter only to an already complete and equivalent result set.
-
-Recommended Phase 4 strategy:
-
-* Treat backend search criteria as authoritative.
-* Update URL state.
-* Submit a new search request.
-
-This avoids divergence between frontend and backend semantics.
-
-## Sort Behavior
-
-Sorting must map directly to supported backend sort values:
-
-```text
-PRICE
-TOTAL_DURATION
-EARLIEST_DEPARTURE
-LATEST_DEPARTURE
-DESTINATION
-```
-
-Labels may be user-friendly:
-
-```text
-Lowest estimated price
-Shortest trip
-Earliest departure
-Latest departure
-Destination
-```
-
-The UI must not offer a sort mode unsupported by the API.
+Local development may use readable console formatting if the same structured fields remain available.
 
 ---
 
-# Responsive Design
+## 2. Required Request Fields
 
-The application must work on:
-
-* Mobile phone widths
-* Tablet widths
-* Desktop widths
-
-Requirements:
-
-* No horizontal page overflow under expected content.
-* Filters remain usable on small screens.
-* Itinerary details remain readable.
-* Touch targets are at least 44 by 44 CSS pixels where practical.
-* The primary search action remains visible and usable.
-* Long airport and city names wrap safely.
-* Segment timelines do not rely on fixed desktop widths.
-
----
-
-# Accessibility
-
-Phase 4 must meet WCAG 2.1 AA where practicable.
-
-Required behaviors:
-
-* Complete keyboard access
-* Semantic form labels
-* Accessible combobox behavior
-* Visible focus indicators
-* Screen-reader-compatible error messages
-* `aria-live` or equivalent announcements for dynamic search state where appropriate
-* No color-only status communication
-* Sufficient text contrast
-* Logical heading hierarchy
-* Semantic result-list structure
-* Accessible loading state
-* Accessible expanded and collapsed advanced filters
-* Descriptive button names
-* Correct association between validation errors and controls
-
-Automated accessibility checks must be supplemented by focused keyboard testing.
-
----
-
-# Loading and Request Management
-
-The frontend must:
-
-* Show a loading state during searches.
-* Prevent accidental duplicate submissions.
-* Cancel or disregard stale autocomplete requests.
-* Avoid replacing newer search results with older responses.
-* Preserve existing criteria during retry.
-* Handle backend timeouts and network errors.
-* Avoid infinite retry loops.
-
-Phase 4 does not require background polling.
-
----
-
-# API Client and Type Synchronization
-
-Use one documented approach:
-
-* Generate TypeScript types from OpenAPI, or
-* Maintain shared schemas with automated compatibility tests.
-
-Recommended:
-
-```text
-OpenAPI → generated frontend API types
-```
-
-Requirements:
-
-* Generated files must be reproducible.
-* Generation command must be documented.
-* CI must detect stale generated types.
-* Frontend code must not define conflicting copies of API enums.
-* Money, dates, optional values, and error types must be represented correctly.
-
----
-
-# Security Requirements
-
-Phase 4 must include basic web and API safeguards:
-
-* HTTPS-compatible configuration
-* Strict request validation
-* Parameterized database access
-* No raw SQL constructed from query input
-* Safe error messages
-* Configured CORS origins
-* No unrestricted production CORS wildcard
-* Basic secure HTTP headers
-* No API keys in frontend code
-* No credentials in logs
-* No unsanitized rendering of backend-provided HTML
-* No client-controlled database field selection
-* Bounded airport-search limits
-* Bounded routing request criteria
-
-Full production rate limiting belongs to Phase 5 unless already implemented generically and correctly.
-
----
-
-# Performance Requirements
-
-Initial targets:
-
-## Airport Search
-
-```text
-p95 under 200 ms
-```
-
-for the Phase 4 test dataset under local integration-test conditions.
-
-## Schedule Search API
-
-```text
-p95 under 1 second
-```
-
-for direct plus one-stop searches under the agreed test dataset and environment.
-
-## Frontend
-
-* Search page should become interactive without unnecessary large client bundles.
-* Avoid loading the complete airport dataset into the browser.
-* Avoid one network request per itinerary.
-* Avoid rendering unbounded result lists without a documented result limit.
-* Production build must not emit critical bundle or runtime failures.
-
-A result cap may be introduced if documented and consistently applied.
-
----
-
-# Result Limits
-
-The API must define a bounded maximum result count or a pagination strategy.
-
-Phase 4 may use a documented maximum result count.
-
-Recommended initial behavior:
-
-```text
-Default maximum results: 250
-```
-
-Requirements:
-
-* Result truncation must be disclosed.
-* Sorting must occur before truncation.
-* The same inputs must produce the same truncated set.
-* The frontend must display a warning when results are truncated.
-
-Pagination may be deferred unless required by realistic result volume.
-
----
-
-# Logging and Request IDs
-
-API requests must include or generate a request ID.
-
-The API should make it possible to log:
+For each API request, logs must make it possible to identify:
 
 * Request ID
-* Endpoint
+* Method
+* Path
 * HTTP status
-* Duration
+* Request duration
+* Application environment
+* Release or build version
+* Error code, when applicable
+
+Search requests should additionally include:
+
 * Origin
 * Departure date
 * Maximum connections
 * Result count
+* Cache hit, miss, bypass, or error
 * Active schedule version
-* Error code
+* Routing duration
+* Serialization duration where measured
 
-The frontend should include the request ID in unexpected-error diagnostic text where available.
+Airport searches should include:
 
-Do not log:
+* Query length
+* Result count
+* Cache status
 
-* Secrets
-* Full request headers
-* User credentials
-* Raw stack traces in user-facing responses
-
----
-
-# Required Tests
-
-## API Unit Tests
-
-Phase 4 must include tests for:
-
-* Airport query normalization
-* Airport result ranking
-* Airport limit validation
-* Airport inactive-record exclusion
-* Search-request conversion into domain criteria
-* API response serialization
-* Money serialization
-* Enum serialization
-* Error mapping
-* Request-ID propagation
-* No-result response
-* Schedule-status serialization
+Do not log the full raw airport query when the project later permits sensitive free-form user text. In Phase 5, airport queries are low risk, but logging normalized bounded values is still preferable.
 
 ---
 
-## API Integration Tests
+## 3. Required Operational Events
 
-Required integration tests:
+Structured events must exist for:
 
-* `GET /api/v1/airports` exact code match
-* Airport city match
-* Airport-name match
-* Case-insensitive airport search
-* Airport result limit
-* Invalid airport-search limit
-* Search with direct results
-* Search with one-stop results
-* Search with filters
-* Search with sort
-* Search with no results
-* Invalid origin
-* Invalid departure date
-* Date outside schedule coverage
-* Invalid connection range
-* Conflicting geography filters
+```text
+application.started
+application.stopped
+database.connection_failed
+redis.connection_failed
+cache.hit
+cache.miss
+cache.error
+search.started
+search.completed
+search.failed
+airport_search.completed
+rate_limit.exceeded
+schedule_import.started
+schedule_import.completed
+schedule_import.failed
+health.degraded
+unexpected_error
+```
+
+Equivalent stable event names may be used.
+
+---
+
+## 4. Sensitive Data Redaction
+
+Logs must not include:
+
+* Database URLs
+* Redis URLs
+* API keys
+* Authorization headers
+* Cookies
+* Session identifiers intended to be secret
+* Full environment dumps
+* Raw stack traces in normal informational logs
+* Frontier credentials
+* Payment information
+* Passport information
+* Complete inbound headers
+* Secret-bearing query parameters
+
+Redaction must be centralized where practical.
+
+---
+
+## 5. Request ID
+
+The API must:
+
+* Accept a valid inbound request ID where policy permits, or generate one.
+* Prevent excessively long or malformed inbound IDs.
+* Return the request ID in the response.
+* Include it in all request-scoped logs.
+* Include it in API error responses.
+* Include it in monitoring events.
+
+Recommended response header:
+
+```text
+X-Request-ID
+```
+
+---
+
+## 6. Correlation
+
+Where background or nested operations occur, logs should include:
+
+* Request ID
+* Search ID
+* Import ID
+* Cache key hash or safe cache identifier
+* Schedule source version
+
+Do not log full cache keys when they contain user criteria unless the format is confirmed safe.
+
+---
+
+## 7. Logging Failure Behavior
+
+Failure to emit a log must not fail a user request.
+
+Logging handlers must avoid uncontrolled blocking.
+
+A remote log destination must not be called synchronously on the critical request path unless bounded and justified.
+
+---
+
+## 8. Logging Tests
+
+Required tests include:
+
+* Request ID generated when absent.
+* Valid request ID propagated when supplied.
+* Invalid or oversized request ID replaced.
+* Request ID appears in error responses.
+* Structured search completion event contains required fields.
+* Cache events contain cache status.
+* Sensitive configuration values are redacted.
+* Authorization and cookie headers are not logged.
+* Logging failure does not fail the search.
+* Unexpected exceptions produce one correlated error event.
+
+---
+
+# OPS-003 — Rate Limiting
+
+## 1. Rate-Limit Scope
+
+Phase 5 must rate-limit at least:
+
+* Airport search endpoint
+* Itinerary search endpoint
+* Any expensive administrative read endpoint
+* Schedule import or activation endpoint, if publicly reachable
+* Health endpoint only if needed to prevent abuse without breaking platform probes
+
+Recommended initial anonymous limits:
+
+```text
+Airport search:
+120 requests per minute per client
+
+Itinerary search:
+30 requests per minute per client
+
+Schedule status:
+60 requests per minute per client
+```
+
+Exact values must be configurable.
+
+---
+
+## 2. Client Identification
+
+Before authentication exists, the limiter may identify clients using:
+
+* Trusted reverse-proxy client IP
+* Direct client IP
+* A bounded anonymous session identifier
+* A documented combination
+
+The system must not blindly trust arbitrary forwarded headers.
+
+Trusted proxy behavior must be configurable and documented.
+
+---
+
+## 3. Rate-Limit Response
+
+Exceeded limits must return:
+
+```http
+HTTP 429 Too Many Requests
+```
+
+The response must use the standard API error schema.
+
+Recommended error code:
+
+```text
+RATE_LIMITED
+```
+
+Recommended headers:
+
+```text
+Retry-After
+X-RateLimit-Limit
+X-RateLimit-Remaining
+X-RateLimit-Reset
+```
+
+Header naming may follow the selected library or standard, but behavior must be documented and tested.
+
+---
+
+## 4. Redis Failure Behavior
+
+The rate limiter must define behavior when Redis is unavailable.
+
+Choose and document one of:
+
+### Fail open
+
+Requests continue without distributed rate limiting.
+
+Recommended for public read-only search during early operation.
+
+### Local fallback
+
+Apply an in-memory per-instance limiter.
+
+Acceptable but not globally consistent.
+
+### Fail closed
+
+Reject requests.
+
+Not recommended for Phase 5 public search.
+
+Recommended Phase 5 policy:
+
+```text
+Fail open with an operational warning and metric.
+```
+
+A stricter policy may be used for administrative write endpoints.
+
+---
+
+## 5. Rate-Limit Granularity
+
+Limits should distinguish endpoint cost.
+
+Airport autocomplete should not share the same low threshold as itinerary search.
+
+The limiter must avoid treating ordinary browser autocomplete as abuse.
+
+A burst allowance may be configured.
+
+---
+
+## 6. Internal and Health Traffic
+
+Platform health probes and approved internal monitoring may bypass normal public limits through a documented trusted mechanism.
+
+Bypasses must not rely on a publicly forgeable header.
+
+---
+
+## 7. Rate-Limit Tests
+
+Required tests include:
+
+* Requests below limit succeed.
+* Request above limit returns HTTP 429.
+* `Retry-After` is present.
+* Standard error schema is preserved.
+* Airport and itinerary endpoints use separate limits.
+* Limits reset after the configured interval.
+* Invalid forwarded headers are not trusted.
+* Redis failure follows documented fallback.
+* Rate-limit event is logged and measured.
+* Health probes remain functional.
+* Concurrent requests do not exceed the accepted tolerance of the chosen algorithm.
+
+---
+
+# OPS-004 — Monitoring and Error Reporting
+
+## 1. Error Monitoring
+
+The application must integrate with an approved monitoring platform such as Sentry or an equivalent.
+
+The integration must support:
+
+* Backend unexpected exceptions
+* Frontend runtime errors
+* Failed API requests where appropriate
+* Release-version tagging
+* Environment tagging
+* Request-ID correlation
+* Source-map support for frontend builds
+* Sensitive-data filtering
+
+The application must remain functional when the monitoring service is unavailable.
+
+---
+
+## 2. Captured Errors
+
+Capture:
+
+* Unhandled backend exceptions
+* Unhandled frontend exceptions
+* Failed schedule imports
+* Database connectivity failures
+* Repeated Redis failures
+* Unexpected routing invariant failures
+* Repeated HTTP 500 responses
+* Deployment startup failures
+* Critical background-job failures
+
+Do not automatically report every expected validation error.
+
+Expected HTTP 4xx responses should generally be measured but not sent as exception events.
+
+---
+
+## 3. Metrics
+
+Required application metrics include:
+
+```text
+http_requests_total
+http_request_duration_seconds
+http_responses_total
+search_requests_total
+search_duration_seconds
+search_results_count
+search_no_results_total
+airport_search_requests_total
+airport_search_duration_seconds
+cache_hits_total
+cache_misses_total
+cache_errors_total
+rate_limit_exceeded_total
+database_query_duration_seconds
+redis_operation_duration_seconds
+schedule_import_total
+schedule_import_failures_total
+active_schedule_version
+application_info
+```
+
+Equivalent names may be used consistently.
+
+---
+
+## 4. Metric Labels
+
+Labels must remain bounded.
+
+Acceptable labels include:
+
+* Endpoint
+* HTTP method
+* Status class
+* Cache outcome
+* Search connection count
+* Environment
+* Failure category
+
+Avoid unbounded labels such as:
+
+* Request ID
+* Search ID
+* Full URL
+* Airport query string
+* Arbitrary exception message
+* User agent
+* Cache key
+* Stack trace
+
+Airport codes may be omitted as labels to avoid high cardinality as the network expands.
+
+---
+
+## 5. Metrics Endpoint
+
+The backend may expose:
+
+```text
+/metrics
+```
+
+when using Prometheus-compatible collection.
+
+Requirements:
+
+* It must not expose secrets.
+* Public exposure must be controlled.
+* Production access should be restricted to approved monitoring infrastructure.
+* It must remain outside normal API response schemas.
+* It must not require the frontend.
+
+An alternative managed metrics exporter is acceptable.
+
+---
+
+## 6. Health and Readiness
+
+Phase 5 must distinguish:
+
+### Liveness
+
+The process is running.
+
+Recommended endpoint:
+
+```text
+/health/live
+```
+
+### Readiness
+
+The application can serve core traffic.
+
+Recommended endpoint:
+
+```text
+/health/ready
+```
+
+### Detailed diagnostic health
+
+Optional protected endpoint:
+
+```text
+/api/v1/health
+```
+
+Readiness should evaluate at least:
+
+* Application initialization
+* PostgreSQL connectivity
+* Required database schema or migration state
+* Active schedule availability
+
+Redis should generally be treated as a degradable dependency, not a readiness blocker, because search must work without it.
+
+Recommended readiness behavior:
+
+```text
+PostgreSQL unavailable → not ready
+No active schedule → not ready for search
+Redis unavailable → ready but degraded
+Monitoring unavailable → ready but degraded
+```
+
+---
+
+## 7. Operational Alerts
+
+Configure or document alerts for:
+
+* HTTP 500 rate above threshold
+* Search p95 latency above threshold
+* Database connectivity failure
 * No active schedule
-* Schedule-status endpoint
-* Consistency between schedule-status source and search source
-* Timezone offsets preserved
-* Estimated pricing serialized correctly
-* Availability remains `NOT_CHECKED`
-* OpenAPI schema generation
+* Schedule data nearing expiration
+* Schedule import failure
+* Sustained Redis failure
+* Rate-limit spikes
+* Zero-result spike across major test origins
+* Frontend runtime error spike
+* Deployment startup failure
 
-Integration tests must use synthetic imported schedule fixtures.
-
----
-
-## Frontend Unit and Component Tests
-
-Required tests:
-
-* Search form required fields
-* Airport combobox loading state
-* Airport combobox result selection
-* Airport combobox keyboard navigation
-* Airport combobox no-results state
-* Airport combobox request error
-* Date-range validation
-* Connection-range validation
-* Geography-filter conflict
-* URL serialization
-* URL deserialization
-* Invalid URL fallback
-* Loading-state rendering
-* Error-state rendering
-* Empty-state rendering
-* Direct itinerary card
-* One-stop itinerary card
-* Cross-midnight itinerary display
-* Estimated price label
-* Availability-not-checked label
-* Schedule-freshness display
-* Result truncation warning, when applicable
-* Frontier handoff wording
+Thresholds must be documented and adjustable.
 
 ---
 
-## End-to-End Tests
+## 8. Monitoring Tests
 
-Phase 4 must include focused end-to-end tests for:
+Required tests or controlled validation include:
+
+* Backend unexpected exception is captured.
+* Frontend test exception is captured in staging or a mocked integration.
+* Sensitive headers are excluded.
+* Request ID is attached to error event.
+* Release and environment tags are present.
+* Monitoring outage does not fail application requests.
+* Metrics endpoint or exporter produces expected metric names.
+* Metric labels remain bounded.
+* Readiness fails when PostgreSQL is unavailable.
+* Readiness reports degraded rather than failed when Redis is unavailable.
+* No-active-schedule readiness behavior matches policy.
+
+---
+
+# Security Hardening
+
+## 1. Security Headers
+
+The frontend and API must use appropriate headers where applicable:
+
+```text
+Content-Security-Policy
+X-Content-Type-Options
+Referrer-Policy
+Permissions-Policy
+Strict-Transport-Security
+```
+
+`Strict-Transport-Security` must be enabled only in environments served exclusively through HTTPS.
+
+Framing protection must be included through CSP `frame-ancestors` or an equivalent header.
+
+The CSP must not be weakened to unrestricted values merely to suppress errors.
+
+---
+
+## 2. CORS
+
+CORS must:
+
+* Use an explicit allowlist.
+* Support local development origins through configuration.
+* Avoid `*` in production.
+* Avoid allowing credentials unless required.
+* Reject unauthorized origins.
+* Document preview-deployment behavior.
+
+---
+
+## 3. Request Bounds
+
+The API must enforce limits for:
+
+* Request body size
+* Airport result count
+* Search result count
+* Connection range
+* Search date range
+* String lengths
+* Request-ID length
+* URL parameter length where supported by infrastructure
+
+Requests exceeding bounds must fail using the standard error contract.
+
+---
+
+## 4. Administrative Surfaces
+
+Any administrative endpoint capable of:
+
+* Triggering schedule import
+* Activating a dataset
+* Clearing caches
+* Viewing detailed diagnostics
+* Modifying configuration
+
+must not be publicly writable without authentication or an equivalent trusted control.
+
+If administrative writes are not needed in Phase 5, they should remain CLI-only or disabled.
+
+---
+
+## 5. Secrets
+
+Secrets must:
+
+* Be provided through environment or secret-management integration.
+* Be absent from source control.
+* Be absent from frontend bundles.
+* Be absent from `.env.example` values.
+* Be redacted from logs and monitoring.
+* Be rotated when accidentally exposed.
+
+Required secret scanning must run in CI.
+
+---
+
+## 6. Dependency Security
+
+CI must include:
+
+* Python dependency audit
+* Node dependency audit
+* Secret scanning
+* Static analysis where practical
+* Container-image vulnerability scan where container deployment is supported
+
+Policy for findings:
+
+* Critical vulnerabilities block release unless an accepted exception exists.
+* High vulnerabilities block release when exploitable in the deployed path.
+* Moderate and low findings must be documented and triaged.
+* Audits must not silently ignore failed execution.
+
+A documented allowlist may be used for verified false positives.
+
+---
+
+## 7. Security Tests
+
+Required tests or validation include:
+
+* Production CORS wildcard is absent.
+* Unauthorized origin is rejected.
+* Security headers are present.
+* Request-body limit is enforced.
+* Oversized request ID is rejected or replaced.
+* API error does not leak stack traces.
+* API error does not leak database details.
+* Secrets are absent from frontend build output.
+* Secret scan passes.
+* Dependency audits execute successfully.
+* Administrative write surfaces are protected or absent.
+* Metrics endpoint exposure follows policy.
+
+---
+
+# QA-001 — End-to-End Test Suite
+
+## 1. E2E Environment
+
+End-to-end tests must run against:
+
+* A real frontend build or representative test server
+* A real FastAPI application
+* PostgreSQL
+* Redis where cache behavior is being tested
+* Synthetic airport and schedule fixtures
+* Stable test configuration
+
+E2E tests must not call Frontier or any external live flight provider.
+
+---
+
+## 2. Required E2E Scenarios
+
+The suite must include at least:
 
 1. Load the search page.
-2. Search for an airport by code.
-3. Select an airport using the keyboard.
-4. Select a supported date.
-5. Submit a direct-only search.
-6. View direct results.
-7. Enable one-stop search.
-8. Apply maximum estimated price.
-9. Change sorting.
-10. Refresh and preserve URL state.
-11. Open a shared results URL.
-12. Display a no-results state.
-13. Display a backend validation error.
-14. Display a network or server error.
-15. Use the primary workflow at a mobile viewport.
-16. Complete the primary workflow using keyboard-only navigation.
-
-E2E tests must use stable synthetic data.
-
-They must not call Frontier or any external live provider.
-
----
-
-## Accessibility Tests
-
-Required checks:
-
-* Automated accessibility scan of search page
-* Automated accessibility scan of populated results page
-* Keyboard navigation through airport selector
-* Keyboard submission
-* Focus placement after validation failure
-* Screen-reader-accessible status messages
-* No color-only price or availability state
-* Accessible advanced-filter disclosure
+2. Search for an airport by exact code.
+3. Search for an airport by city.
+4. Select an airport using the keyboard.
+5. Select a supported departure date.
+6. Submit a direct-only search.
+7. View a direct itinerary.
+8. Enable one-stop search.
+9. View a one-stop itinerary.
+10. Apply a maximum estimated-price filter.
+11. Apply a departure-time filter.
+12. Apply domestic-only filtering.
+13. Change sorting.
+14. Refresh and preserve URL state.
+15. Open a copied or shared results URL.
+16. Navigate Back and Forward.
+17. Display no-results state.
+18. Display validation error.
+19. Display API server error.
+20. Retry a failed search.
+21. Display data-freshness information.
+22. Display estimated-price disclaimer.
+23. Display availability-not-checked status.
+24. Use the primary flow at a mobile viewport.
+25. Complete the primary flow using keyboard-only navigation.
+26. Exercise a cached repeated search.
+27. Verify search still works when Redis is unavailable.
+28. Verify rate-limit response behavior in a controlled test.
+29. Verify request ID appears in unexpected-error diagnostics.
+30. Verify no external Frontier request occurs.
 
 ---
 
-## Contract Tests
+## 3. E2E Stability
 
-Required contract checks:
+Tests must avoid:
 
-* OpenAPI generation succeeds.
-* Frontend generated types match current OpenAPI.
-* CI fails when generated types are stale.
-* Public enum values remain stable.
-* Search response matches the documented schema.
-* API errors match the documented error schema.
+* Arbitrary sleep delays
+* Dependence on wall-clock current date without explicit fixture control
+* Dependence on external networks
+* Shared mutable test data without reset
+* Order dependence
+* Random fixture assumptions
+* Brittle selectors based only on styling classes
+
+Use stable semantic selectors and explicit readiness conditions.
 
 ---
 
-# Required Test Fixtures
+## 4. E2E Artifacts
 
-Phase 4 fixtures must include:
+On failure, CI should preserve:
 
-1. Multiple airports matching the same city text.
-2. An exact airport-code match.
-3. An inactive airport.
-4. A direct itinerary.
-5. A one-stop itinerary.
-6. A cross-midnight itinerary.
-7. Domestic and international destinations.
-8. Multiple itineraries with sort ties.
-9. A no-result search.
-10. A schedule range boundary.
-11. A source version with known freshness metadata.
-12. A result set exceeding the configured result cap, when truncation is implemented.
+* Screenshot
+* Browser trace
+* Relevant frontend logs
+* Relevant API logs
+* Test report
+* Request ID when available
 
-Fixtures must be synthetic and clearly labeled.
+Video recording is optional.
+
+Artifacts must not expose secrets.
+
+---
+
+# QA-002 — Performance and Load Validation
+
+## 1. Performance Test Scope
+
+Performance testing must cover:
+
+* Airport search
+* Direct itinerary search
+* Direct plus one-stop search
+* Cached search
+* Uncached search
+* No-result search
+* Schedule-status endpoint
+* Rate limiter under burst traffic
+* Redis failure fallback
+* PostgreSQL connection-pool behavior
+
+---
+
+## 2. Test Dataset
+
+Performance tests must document:
+
+* Airport count
+* Route count
+* Scheduled-flight count
+* Active date range
+* Number of first-segment candidates
+* Number of second-segment candidates
+* Expected result count
+
+Synthetic data may be scaled to approximate realistic search complexity.
+
+---
+
+## 3. Initial Performance Targets
+
+Unless superseded by an accepted ADR:
+
+### Airport search
+
+```text
+p50 < 75 ms
+p95 < 200 ms
+p99 < 400 ms
+```
+
+### Cached itinerary search
+
+```text
+p50 < 100 ms
+p95 < 250 ms
+p99 < 500 ms
+```
+
+### Uncached direct search
+
+```text
+p50 < 250 ms
+p95 < 500 ms
+p99 < 900 ms
+```
+
+### Uncached direct plus one-stop search
+
+```text
+p50 < 500 ms
+p95 < 1 second
+p99 < 2 seconds
+```
+
+These targets apply to the documented staging or local benchmark environment and dataset.
+
+---
+
+## 4. Concurrency Target
+
+The staging system must support at least:
+
+```text
+20 concurrent search users
+```
+
+without:
+
+* Request corruption
+* Incorrect mixed results
+* Database pool exhaustion
+* Unbounded memory growth
+* Sustained error rates above the accepted threshold
+
+Recommended initial error-rate target:
+
+```text
+Less than 1% unexpected server errors
+```
+
+Expected HTTP 4xx responses generated intentionally by the load test must be excluded from the server-error rate.
+
+---
+
+## 5. Cache Performance
+
+The performance report must show:
+
+* Cache hit ratio under repeated workload
+* Cached versus uncached latency
+* Redis-operation latency
+* Behavior during Redis outage
+* Recovery after Redis restoration
+* Whether cache stampede occurs during concurrent misses
+
+---
+
+## 6. Database Performance
+
+The performance review must identify:
+
+* Slow queries
+* Missing indexes
+* N+1 query patterns
+* Connection-pool exhaustion
+* Lock contention
+* Excessive repeated airport lookups
+* Full-table scans on expected search paths
+
+Query-plan inspection is required for the primary schedule queries.
+
+---
+
+## 7. Performance Regression Gate
+
+CI may use a lightweight benchmark threshold.
+
+Full load testing may run:
+
+* On demand
+* Nightly
+* Before release
+* In staging
+
+A regression above an agreed tolerance must block release or receive an accepted exception.
+
+Recommended regression tolerance:
+
+```text
+No more than 20% p95 degradation against the recorded baseline
+```
+
+---
+
+# QA-003 — Timezone and Edge-Case Validation
+
+## 1. Required Timezone Cases
+
+The validation suite must include:
+
+* Same-timezone flight
+* Eastbound timezone change
+* Westbound timezone change
+* Cross-midnight arrival
+* Cross-midnight connection
+* Spring-forward transition
+* Fall-back transition
+* DST-observing origin to non-DST destination
+* Non-DST origin to DST-observing destination
+* Ambiguous local time
+* Nonexistent local time
+* Arrival-day offset zero
+* Arrival-day offset one
+* Connection exactly at minimum
+* Connection exactly at maximum
+* Connection one minute below minimum
+* Connection one minute above maximum
+
+---
+
+## 2. Required Routing Edge Cases
+
+Include:
+
+* No active schedule
+* Date at schedule effective start
+* Date at schedule effective end
+* Date outside coverage
+* Inactive airport
+* Inactive schedule source
+* Duplicate scheduled flights
+* Conflicting duplicate schedules
+* Return-to-origin route
+* Repeated connection airport
+* Identical flight number on different routes
+* Identical flight number on different dates
+* Empty result set
+* Maximum result truncation
+* Stable tie sorting
+* Zero-price misconfiguration
+* Invalid currency configuration
+* International estimate disabled
+* Redis failure
+* Database failure
+* Corrupt cached response
+* Rate-limit boundary
+* Oversized request
+* Invalid URL state
+* Backend timeout
+* Stale generated API types
+
+---
+
+## 3. Date and Clock Control
+
+Tests must not depend on the uncontrolled current clock.
+
+Use:
+
+* Injected clock service
+* Fixed timestamps
+* Frozen time in tests
+* Explicit fixture dates
+
+Any code using the current time directly must be isolated behind a testable interface where current time affects behavior.
+
+---
+
+## 4. Cross-Layer Timezone Contract
+
+Tests must verify consistency between:
+
+* Database schedule definition
+* Domain flight instance
+* Routing itinerary
+* API serialization
+* Frontend rendering
+
+The frontend must display the backend-provided local timestamps without introducing browser-timezone shifts.
+
+---
+
+# Frontend Reliability
+
+## 1. Error Boundary
+
+The frontend must include an error boundary or equivalent framework behavior for unexpected rendering failures.
+
+It must:
+
+* Show a usable fallback.
+* Provide a retry or reload action.
+* Include a safe request or event identifier where available.
+* Report the error through monitoring.
+* Avoid displaying raw stack traces.
+
+---
+
+## 2. API Failure Handling
+
+The frontend must distinguish:
+
+* Validation error
+* Rate-limit error
+* Network error
+* Timeout
+* Server error
+* No-result success
+* Stale or degraded data warning
+
+A rate-limit error should tell the user when retry may succeed where `Retry-After` is available.
+
+---
+
+## 3. Request Cancellation
+
+The frontend must avoid stale response replacement.
+
+Autocomplete and search requests should:
+
+* Be cancelled when superseded where supported, or
+* Be ignored when their request sequence is stale.
+
+---
+
+## 4. Client Monitoring
+
+Frontend monitoring must capture:
+
+* Unhandled runtime errors
+* Failed route rendering
+* Repeated failed API requests
+* Release version
+* Environment
+* Browser metadata within privacy policy
+* Request ID when available
+
+Session replay is not required and should not be enabled without a privacy review.
+
+---
+
+# Deployment Validation
+
+## 1. Deployment Artifacts
+
+Phase 5 must validate:
+
+* Frontend production build
+* Backend production image or package
+* Database migration command
+* Environment configuration validation
+* Health and readiness checks
+* Static asset serving
+* Frontend source maps where monitoring requires them
+* Container startup as a non-root user where practical
+
+---
+
+## 2. Staging Environment
+
+A staging environment must be documented and should include:
+
+* Frontend
+* Backend
+* PostgreSQL
+* Redis
+* Synthetic schedule data
+* Monitoring
+* Metrics
+* HTTPS
+* Explicit CORS configuration
+* Release identifier
+
+Staging must not use real Frontier credentials or automated Frontier access.
+
+---
+
+## 3. Migration Safety
+
+Deployment validation must prove:
+
+* Migrations run before or during deployment in a controlled manner.
+* A failed migration prevents rollout.
+* Existing data is preserved.
+* The application does not start against an incompatible schema.
+* Rollback procedure is documented.
+* Previously applied migrations are not edited.
+
+---
+
+## 4. Rollback
+
+The runbook must define:
+
+* How to identify the deployed release
+* How to roll back frontend
+* How to roll back backend
+* How to handle nonreversible migrations
+* How to disable caching
+* How to disable rate limiting if misconfigured
+* How to restore the previous active schedule version
+* How to verify service after rollback
+
+Automatic destructive database rollback is not required.
+
+---
+
+## 5. Deployment Approval
+
+Phase 5 may support staging deployment automatically.
+
+Production deployment must still require explicit human approval.
+
+---
+
+# Operational Documentation
+
+Required documentation includes:
+
+```text
+docs/RUNBOOK.md
+docs/RELEASE_CHECKLIST.md
+docs/INCIDENT_RESPONSE.md
+docs/PERFORMANCE_BASELINE.md
+docs/CACHING.md
+docs/MONITORING.md
+```
+
+Equivalent organization is acceptable.
+
+---
+
+## Runbook Requirements
+
+The runbook must cover:
+
+* Starting and stopping services
+* Checking health and readiness
+* Running migrations
+* Importing schedule data
+* Checking the active schedule version
+* Inspecting logs
+* Inspecting metrics
+* Diagnosing Redis failure
+* Diagnosing PostgreSQL failure
+* Clearing or bypassing cache safely
+* Changing rate-limit configuration
+* Confirming release version
+* Rolling back a release
+* Restoring the previous active schedule dataset
+
+---
+
+## Incident Response Requirements
+
+Document severity levels and response steps for:
+
+* Complete outage
+* Elevated server errors
+* Search latency degradation
+* Incorrect route results
+* Incorrect timezone display
+* Incorrect estimated pricing
+* No active schedule
+* Expired schedule data
+* Redis outage
+* Database outage
+* Security or secret exposure
+* Monitoring outage
+
+The document must state that incorrect route, time, or price behavior may require disabling search until corrected.
+
+---
+
+# CI/CD Requirements
+
+## Pull Request Checks
+
+Required checks include:
+
+### Frontend
+
+* Formatting
+* Lint
+* Type checking
+* Unit/component tests
+* Production build
+* Accessibility smoke tests
+* Generated API type check
+
+### Backend
+
+* Formatting
+* Lint
+* Type checking
+* Unit tests
+* Integration tests
+* Routing and timezone tests
+* Migration validation
+* OpenAPI generation
+* Cache and rate-limit tests
+
+### Security
+
+* Secret scan
+* Python dependency audit
+* Node dependency audit
+* Static analysis
+* Container scan where applicable
+
+### Contract
+
+* OpenAPI diff or contract check
+* Generated frontend types are current
+* Public enum stability
+
+---
+
+## Nightly or Release Checks
+
+Recommended:
+
+* Full E2E suite
+* Full load test
+* Dependency scans
+* Container scan
+* Schedule expiration check
+* Migration from a clean database
+* Migration from a Phase 4 database snapshot
+* Redis-outage test
+* Browser matrix test
+
+---
+
+## CI Reliability
+
+CI must:
+
+* Use locked dependencies.
+* Fail when a required command is missing.
+* Avoid relying on a developer’s local files.
+* Start required services explicitly.
+* Preserve useful failure artifacts.
+* Avoid silently skipping failed test discovery.
+* Avoid treating zero collected tests as success where tests are required.
+* Use timeouts to prevent hung jobs.
+
+---
+
+# Configuration Requirements
+
+Phase 5 must define and validate configuration equivalent to:
+
+```text
+APP_ENV
+APP_RELEASE
+DATABASE_URL
+REDIS_URL
+FRONTEND_URL
+CORS_ALLOWED_ORIGINS
+
+CACHE_ENABLED
+AIRPORT_SEARCH_CACHE_TTL_SECONDS
+SCHEDULE_STATUS_CACHE_TTL_SECONDS
+SEARCH_CACHE_TTL_SECONDS
+SAME_DAY_SEARCH_CACHE_TTL_SECONDS
+NO_RESULT_CACHE_TTL_SECONDS
+CACHE_OPERATION_TIMEOUT_MS
+
+RATE_LIMIT_ENABLED
+AIRPORT_RATE_LIMIT_PER_MINUTE
+SEARCH_RATE_LIMIT_PER_MINUTE
+SCHEDULE_STATUS_RATE_LIMIT_PER_MINUTE
+TRUSTED_PROXY_COUNT
+
+MONITORING_ENABLED
+SENTRY_DSN
+METRICS_ENABLED
+LOG_LEVEL
+LOG_FORMAT
+
+REQUEST_BODY_MAX_BYTES
+REQUEST_ID_MAX_LENGTH
+MAX_SEARCH_RESULTS
+```
+
+Requirements:
+
+* Invalid configuration must fail clearly.
+* Secrets must not appear in validation errors.
+* Test configuration must be explicit.
+* Production configuration must not silently use insecure development defaults.
+* Required production values must be enforced.
 
 ---
 
@@ -1253,17 +1690,18 @@ Fixtures must be synthetic and clearly labeled.
 
 The exact commands must be updated to match the repository.
 
-At minimum, Phase 4 must provide commands equivalent to:
+At minimum, Phase 5 must provide working commands equivalent to:
 
 ```bash
 # Install
 pnpm install --frozen-lockfile
 <locked Python dependency installation command>
 
-# Infrastructure and database
+# Infrastructure
+docker compose config --quiet
 docker compose up -d --wait
 alembic upgrade head
-<fixture import command>
+<synthetic fixture import command>
 
 # Static verification
 make format-check
@@ -1273,67 +1711,83 @@ make typecheck
 # Backend tests
 <backend unit-test command>
 <backend integration-test command>
-<API contract-test command>
+<cache test command>
+<rate-limit test command>
+<monitoring test command>
+<timezone and edge-case test command>
 
 # Frontend tests
 pnpm --filter web test
-pnpm --filter web type-check
+pnpm --filter web typecheck
 pnpm --filter web lint
+pnpm --filter web build
 
-# End-to-end tests
+# Contract and security
+<OpenAPI generation command>
+<generated API type check>
+<secret scan command>
+<Python dependency audit command>
+<Node dependency audit command>
+<container scan command>
+
+# End-to-end
 pnpm --filter web test:e2e
 
 # Accessibility
-pnpm --filter web test
-pnpm --filter web test:e2e
+<accessibility test command>
 
-# API contract and generated types
-cd apps/api && ./.venv/bin/python scripts/export_openapi.py
-cd apps/web && pnpm gen:types
-cd apps/web && pnpm check:types
+# Performance
+<lightweight benchmark command>
+<staging load-test command>
 
-# Builds
-make build
-pnpm --filter web build
+# Failure-mode validation
+<Redis outage test>
+<database readiness test>
+<rate-limit test>
 
 # CI parity
 <the exact commands invoked by remote CI>
 ```
 
-Replace placeholders before Phase 4 is marked complete.
+No placeholder may remain in this section when Phase 5 is marked complete.
 
-No agent may claim a command passed unless it was actually run.
+No agent may claim a command passed unless it was actually executed successfully.
 
 ---
 
 # Task Status Rules
 
-At the start of Phase 4:
+At the start of Phase 5:
 
 * `FND-001` through `FND-008` remain `COMPLETE`.
 * `DAT-001` through `DAT-006` remain `COMPLETE`.
 * `RTE-001` through `RTE-007` remain `COMPLETE`.
-* `API-001` through `API-003` begin as `NOT STARTED`.
-* `WEB-001` through `WEB-004` begin as `NOT STARTED`.
-* `OPS-*`, availability-provider, AI, and later product tasks remain `NOT STARTED`, except for generic infrastructure explicitly completed and verified in earlier phases.
+* `API-001` through `API-003` remain `COMPLETE`.
+* `WEB-001` through `WEB-004` remain `COMPLETE`.
+* `OPS-001` through `OPS-004` begin as `NOT STARTED`.
+* `QA-001` through `QA-003` begin as `NOT STARTED`.
+* Availability, AI, user-account, and future product tasks remain `NOT STARTED`.
 
-A Phase 4 task may be marked `COMPLETE` only when:
+A Phase 5 task may be marked `COMPLETE` only when:
 
-* The implementation exists.
-* Required tests pass.
-* Public contracts are documented.
-* Frontend behavior is connected to the real Phase 4 API.
-* No mock-only or disconnected implementation remains in the production path.
+* Implementation exists.
+* Required automated tests pass.
+* Failure behavior is tested.
+* Operational documentation is updated.
+* Relevant staging validation succeeds.
+* Remote CI passes.
 
-A static UI that does not call the search API does not complete a web task.
+Configuration alone does not complete an OPS task.
 
-An endpoint returning fixture constants instead of routing-engine results does not complete an API task.
+A test file that is skipped or not invoked by CI does not complete a QA task.
+
+A monitoring integration that has not been validated does not complete OPS-004.
 
 ---
 
 # Allowed Change Areas
 
-Phase 4 may modify:
+Phase 5 may modify:
 
 ```text
 apps/api/**
@@ -1343,6 +1797,7 @@ docs/**
 data/**
 infrastructure/**
 .github/workflows/**
+orchestration/**
 TASKS.md
 DECISIONS.md
 PHASE.md
@@ -1355,14 +1810,16 @@ pyproject.toml
 package.json
 pnpm-workspace.yaml
 lockfiles
+deployment configuration
+monitoring configuration
 ```
 
-Changes to Phase 3 routing behavior require:
+Changes to routing, pricing, schedule ingestion, or public API semantics require:
 
-* A demonstrated Phase 4 integration defect
+* A reproducible defect
 * A regression test
-* Confirmation that the change preserves the Phase 3 contract
-* An ADR when architecture or documented semantics change
+* Confirmation that prior phase contracts remain satisfied
+* An ADR when documented behavior or architecture changes
 
 ---
 
@@ -1373,225 +1830,231 @@ Human approval is required before:
 * Modifying the PRD
 * Modifying the TDD’s core architecture
 * Changing public API paths
-* Changing public API enum values
-* Removing documented response fields
-* Changing money serialization policy
+* Removing public response fields
+* Changing money serialization
 * Changing timezone semantics
-* Adding live availability
-* Adding browser automation
-* Adding Frontier authentication
-* Adding an LLM dependency
-* Adding user accounts
-* Increasing routing above one connection
-* Adding round-trip search
+* Changing routing rules
+* Changing cache consistency guarantees
+* Changing Redis failure policy
+* Changing rate-limit failure policy
+* Adding a new monitoring vendor
 * Adding a paid external service
+* Exposing administrative write endpoints
+* Adding authentication
+* Adding live Frontier integration
+* Adding browser automation
+* Adding an LLM dependency
 * Changing the active-phase task list
-* Enabling production deployment
+* Deploying to production
+* Automatically merging to the protected main branch
 
 Approved deviations must be recorded in `DECISIONS.md`.
 
 ---
 
-# Phase 4 Completion Gate
+# Phase 5 Completion Gate
 
-Phase 4 is complete only when all applicable items below are satisfied.
+Phase 5 is complete only when all applicable items below are satisfied.
 
 ## Scope
 
-* [ ] Only API-001 through API-003 and WEB-001 through WEB-004 are evaluated as Phase 4 deliverables.
-* [ ] No live availability provider is required.
-* [ ] No Frontier browser automation is present.
+* [ ] Only OPS-001 through OPS-004 and QA-001 through QA-003 are evaluated as Phase 5 deliverables.
+* [ ] No live Frontier provider has been added.
+* [ ] No Frontier browser automation has been added.
+* [ ] No user accounts or payment functionality has been added.
 * [ ] No LLM is used for routing, pricing, or availability.
-* [ ] No user account or payment implementation is required.
 * [ ] Future-phase tasks remain factually marked.
 
-## Airport API
+## Caching
 
-* [ ] Airport endpoint exists under `/api/v1`.
-* [ ] Exact code matching works.
-* [ ] City and name matching work.
-* [ ] Search is case-insensitive.
-* [ ] Result ranking is deterministic.
-* [ ] Inactive airports are excluded.
-* [ ] Limits are validated and bounded.
-* [ ] Airport API integration tests pass.
+* [ ] Cache abstraction exists.
+* [ ] Airport search caching works.
+* [ ] Schedule-status caching works.
+* [ ] Itinerary-search caching works.
+* [ ] Cache keys use canonical normalized inputs.
+* [ ] Active schedule version is part of cache identity.
+* [ ] Routing or response version is part of cache identity.
+* [ ] TTLs are configurable.
+* [ ] No-result caching works.
+* [ ] Corrupt cache entries are ignored safely.
+* [ ] Redis timeout falls back to uncached search.
+* [ ] Redis outage does not make search unavailable.
+* [ ] Schedule activation invalidates or bypasses old cache entries.
+* [ ] Cache behavior is tested.
 
-## Search API
+## Logging
 
-* [ ] Search endpoint exists under `/api/v1`.
-* [ ] Request validation is complete.
-* [ ] Domain search criteria are used.
-* [ ] Phase 3 routing engine is called.
-* [ ] Direct results serialize correctly.
-* [ ] One-stop results serialize correctly.
-* [ ] Timezone offsets are preserved.
-* [ ] Estimated pricing is serialized safely.
-* [ ] Availability remains `NOT_CHECKED`.
-* [ ] No-result searches return a stable response.
-* [ ] Typed warnings are returned.
-* [ ] Internal exceptions do not leak.
+* [ ] Logs are structured in staging and production.
+* [ ] Every request has a request ID.
+* [ ] Request ID appears in response headers.
+* [ ] Request ID appears in API errors.
+* [ ] Search-completion logs contain required fields.
+* [ ] Cache outcomes are logged.
+* [ ] Rate-limit events are logged.
+* [ ] Sensitive headers are not logged.
+* [ ] Secrets are redacted.
+* [ ] Logging failure does not fail user requests.
+* [ ] Logging behavior is tested.
 
-## Schedule Status
+## Rate Limiting
 
-* [ ] Schedule-status endpoint exists.
-* [ ] Active source metadata is correct.
-* [ ] Route and flight counts are correct.
-* [ ] Search and status use the same active source version.
-* [ ] No-active-schedule behavior is tested.
+* [ ] Airport search has a configured rate limit.
+* [ ] Itinerary search has a configured rate limit.
+* [ ] Schedule status has a configured rate limit.
+* [ ] HTTP 429 uses the standard error schema.
+* [ ] `Retry-After` or equivalent reset information is present.
+* [ ] Client identification is documented.
+* [ ] Untrusted proxy headers are not blindly accepted.
+* [ ] Redis failure follows the documented policy.
+* [ ] Health probes remain usable.
+* [ ] Rate-limit behavior is tested.
 
-## Error Contract
+## Monitoring and Metrics
 
-* [ ] Error schema is consistent.
-* [ ] Stable error codes are used.
-* [ ] Request IDs are present.
-* [ ] Validation errors are distinct from internal errors.
-* [ ] Stack traces and SQL details are not exposed.
-* [ ] Frontend renders expected and unexpected errors appropriately.
+* [ ] Backend unexpected exceptions are captured.
+* [ ] Frontend unexpected exceptions are captured.
+* [ ] Release and environment tags are present.
+* [ ] Request IDs are attached to error events.
+* [ ] Sensitive data is filtered.
+* [ ] Monitoring outage does not fail user traffic.
+* [ ] Required metrics exist.
+* [ ] Metric labels are bounded.
+* [ ] Search latency is measured.
+* [ ] Cache hit and error metrics exist.
+* [ ] Rate-limit metrics exist.
+* [ ] Schedule-import failure metrics exist.
+* [ ] Monitoring behavior is validated.
 
-## OpenAPI and Types
+## Health and Readiness
 
-* [ ] OpenAPI generation succeeds.
-* [ ] Phase 4 endpoints appear in OpenAPI.
-* [ ] Frontend API types are synchronized.
-* [ ] CI detects stale generated types.
-* [ ] Public enum values are stable.
-* [ ] Contract tests pass.
-
-## Search Form
-
-* [ ] Airport combobox is connected to the API.
-* [ ] Airport combobox works with keyboard input.
-* [ ] Date selection works.
-* [ ] Supported schedule range is enforced.
-* [ ] Connection selection works.
-* [ ] Advanced filters work.
-* [ ] Invalid combinations are prevented or clearly reported.
-* [ ] Form submission produces normalized URL state.
-
-## Results Page
-
-* [ ] Loading state works.
-* [ ] Success state works.
-* [ ] Empty state works.
-* [ ] Validation-error state works.
-* [ ] Network-error state works.
-* [ ] Retry works.
-* [ ] Search summary is shown.
-* [ ] Result count is shown.
-* [ ] Freshness metadata is shown.
-* [ ] Availability warning is shown.
-
-## Itinerary Cards
-
-* [ ] Direct itineraries render correctly.
-* [ ] One-stop itineraries render correctly.
-* [ ] Segment order is correct.
-* [ ] Connection airport is shown.
-* [ ] Layover duration is shown.
-* [ ] Cross-midnight dates are clear.
-* [ ] Local departure and arrival times are clear.
-* [ ] Total duration is shown.
-* [ ] Estimated price is labeled honestly.
-* [ ] Availability is shown as not checked.
-* [ ] Frontier handoff wording is non-misleading.
-
-## Filters and Sorting
-
-* [ ] Connection filter works.
-* [ ] Time filters work.
-* [ ] Duration filter works.
-* [ ] Estimated-price filter works.
-* [ ] Domestic-only works.
-* [ ] International-only works.
-* [ ] Sort modes map to backend values.
-* [ ] URL state updates correctly.
-* [ ] Refresh preserves criteria.
-* [ ] Shared URL restores criteria.
-* [ ] Back and Forward navigation work.
-* [ ] Invalid URL parameters are handled safely.
-
-## Responsive Design
-
-* [ ] Primary workflow works at mobile width.
-* [ ] Primary workflow works at desktop width.
-* [ ] No unintended horizontal overflow exists.
-* [ ] Filters remain usable on mobile.
-* [ ] Long airport names render safely.
-* [ ] Itinerary segments remain readable.
-
-## Accessibility
-
-* [ ] Search form is keyboard accessible.
-* [ ] Airport combobox is accessible.
-* [ ] Validation errors are associated with controls.
-* [ ] Dynamic loading and result states are announced appropriately.
-* [ ] Statuses do not rely on color alone.
-* [ ] Focus indicators are visible.
-* [ ] Automated accessibility tests pass.
-* [ ] Keyboard-only E2E workflow passes.
-
-## Tests
-
-* [ ] API unit tests pass.
-* [ ] API integration tests pass.
-* [ ] Frontend unit and component tests pass.
-* [ ] End-to-end tests pass.
-* [ ] Accessibility checks pass.
-* [ ] Contract tests pass.
-* [ ] Tests use synthetic data.
-* [ ] No test calls Frontier or an external live provider.
-* [ ] Defect fixes include regression tests.
-
-## Performance
-
-* [ ] Airport-search performance meets the agreed target or has an accepted exception.
-* [ ] Search API performance meets the agreed target or has an accepted exception.
-* [ ] No request is made per itinerary card.
-* [ ] No complete airport dataset is shipped unnecessarily to the browser.
-* [ ] Result count is bounded or paginated.
-* [ ] Truncation is disclosed when applicable.
+* [ ] Liveness endpoint works.
+* [ ] Readiness endpoint works.
+* [ ] PostgreSQL failure makes readiness fail.
+* [ ] No active schedule makes search readiness fail.
+* [ ] Redis outage reports degraded state without failing readiness.
+* [ ] Health responses do not expose secrets.
+* [ ] Platform probes are documented.
 
 ## Security
 
-* [ ] Request inputs are strictly validated.
-* [ ] CORS origins are configured.
-* [ ] No production wildcard CORS is used.
-* [ ] Secure HTTP headers are configured.
+* [ ] Production CORS uses an explicit allowlist.
+* [ ] Security headers are present.
+* [ ] CSP is valid and documented.
+* [ ] Request-size limits are enforced.
+* [ ] Search and airport limits are bounded.
+* [ ] Secrets are absent from source control.
 * [ ] Secrets are absent from frontend bundles.
-* [ ] Backend errors do not expose internal data.
-* [ ] User-controlled text is rendered safely.
-* [ ] Airport and result limits are bounded.
+* [ ] Secret scanning passes.
+* [ ] Dependency audits execute successfully.
+* [ ] Critical vulnerabilities are resolved or have accepted exceptions.
+* [ ] Administrative write surfaces are protected or absent.
+* [ ] API errors do not expose internal details.
 
-## Verification
+## End-to-End Testing
 
-* [ ] Formatting passes.
-* [ ] Lint passes.
-* [ ] Backend type checking passes.
-* [ ] Frontend type checking passes.
-* [ ] Backend tests pass.
-* [ ] Frontend tests pass.
-* [ ] E2E tests pass.
-* [ ] Accessibility tests pass.
-* [ ] OpenAPI and type-generation checks pass.
-* [ ] Production builds pass.
-* [ ] Docker Compose validates.
-* [ ] PostgreSQL and Redis become healthy.
+* [ ] Core direct-search workflow passes.
+* [ ] Core one-stop workflow passes.
+* [ ] Filter and sorting workflows pass.
+* [ ] URL persistence workflow passes.
+* [ ] No-result workflow passes.
+* [ ] Validation-error workflow passes.
+* [ ] Server-error and retry workflow pass.
+* [ ] Mobile workflow passes.
+* [ ] Keyboard-only workflow passes.
+* [ ] Cached search workflow passes.
+* [ ] Redis-outage search workflow passes.
+* [ ] No E2E test calls Frontier.
+* [ ] Failure artifacts are preserved in CI.
+
+## Timezone and Edge Cases
+
+* [ ] Same-timezone case passes.
+* [ ] Eastbound case passes.
+* [ ] Westbound case passes.
+* [ ] Cross-midnight arrival passes.
+* [ ] Cross-midnight connection passes.
+* [ ] Spring-forward case passes.
+* [ ] Fall-back case passes.
+* [ ] Ambiguous-time policy is tested.
+* [ ] Nonexistent-time policy is tested.
+* [ ] Minimum connection boundary passes.
+* [ ] Maximum connection boundary passes.
+* [ ] Duplicate schedule case passes.
+* [ ] Return-to-origin exclusion passes.
+* [ ] Frontend rendering preserves API timezone values.
+* [ ] Tests use a controlled clock.
+
+## Performance
+
+* [ ] Airport-search benchmark is recorded.
+* [ ] Cached-search benchmark is recorded.
+* [ ] Uncached direct-search benchmark is recorded.
+* [ ] Uncached one-stop benchmark is recorded.
+* [ ] Twenty-concurrent-user load test completes.
+* [ ] Unexpected server-error rate remains below threshold.
+* [ ] Cache hit ratio is measured.
+* [ ] Redis-outage behavior is measured.
+* [ ] Primary query plans are inspected.
+* [ ] No uncontrolled N+1 query pattern exists.
+* [ ] No uncontrolled memory growth is observed.
+* [ ] Performance baseline is documented.
+* [ ] Material regressions have accepted exceptions or are fixed.
+
+## CI/CD
+
+* [ ] Pull-request CI runs all required static checks.
+* [ ] Backend tests run.
+* [ ] Frontend tests run.
+* [ ] Contract tests run.
+* [ ] Security scans run.
+* [ ] E2E tests run in the selected release workflow.
+* [ ] CI fails when expected test discovery is missing.
+* [ ] CI preserves failure artifacts.
+* [ ] Locked dependencies are used.
 * [ ] Remote CI is green.
+
+## Deployment Validation
+
+* [ ] Frontend production artifact builds.
+* [ ] Backend production artifact builds.
+* [ ] Database migration succeeds in staging.
+* [ ] Application refuses incompatible schema where required.
+* [ ] Staging health checks pass.
+* [ ] Staging smoke tests pass.
+* [ ] Staging uses HTTPS.
+* [ ] Staging CORS is correct.
+* [ ] Release version is visible in diagnostics.
+* [ ] Rollback procedure is documented and tested where practical.
+* [ ] Production release still requires human approval.
+
+## Documentation
+
+* [ ] Runbook exists.
+* [ ] Release checklist exists.
+* [ ] Incident-response document exists.
+* [ ] Performance baseline exists.
+* [ ] Caching behavior is documented.
+* [ ] Monitoring behavior is documented.
+* [ ] Required commands contain no placeholders.
+* [ ] Configuration variables are documented.
+* [ ] Redis and PostgreSQL failure procedures are documented.
+* [ ] Rollback instructions are documented.
 
 ## Review
 
-* [ ] No unresolved P0 finding exists within Phase 4 scope.
-* [ ] No unresolved P1 finding exists within Phase 4 scope.
+* [ ] No unresolved P0 finding exists within Phase 5 scope.
+* [ ] No unresolved P1 finding exists within Phase 5 scope.
+* [ ] No unapproved critical or high security finding remains.
 * [ ] `TASKS.md` reflects actual status.
 * [ ] Working tree is clean.
-* [ ] All Phase 4 changes are committed.
+* [ ] All Phase 5 changes are committed.
 * [ ] Any required ADR has been accepted.
 
 ---
 
 # Binary Release-Gate Rule
 
-The final Phase 4 reviewer must return exactly one primary verdict:
+The final Phase 5 reviewer must return exactly one primary verdict:
 
 * `PASS`
 * `FAIL`
@@ -1601,17 +2064,16 @@ A `FAIL` may contain only reproducible blockers against this document.
 The reviewer must not:
 
 * Require live GoWild availability.
-* Require exact taxes or fees.
+* Require exact Frontier taxes or fees.
 * Require Frontier authentication.
 * Require browser automation.
 * Require user accounts.
-* Require alerts.
-* Require weather or hotel data.
-* Require round-trip search.
 * Require natural-language search.
-* Require production deployment.
-* Require optional visual redesigns.
-* Treat subjective styling preferences as blockers.
+* Require weather or hotel integrations.
+* Require multi-region production architecture.
+* Require subjective visual redesign.
+* Require optional refactoring without a demonstrated defect.
+* Treat an excluded future feature as a blocker.
 
 A `PASS` requires every mandatory completion-gate item to be satisfied or explicitly marked not applicable through an accepted ADR.
 
@@ -1622,19 +2084,36 @@ A `PASS` requires every mandatory completion-gate item to be satisfied or explic
 Every blocking finding must include:
 
 * Exact file and location
-* Exact failed command, request, or test
+* Exact command, request, test, or load scenario
 * Expected behavior
 * Actual behavior
 * Relevant section of this document
 * Smallest compliant correction
 
+Performance blockers must include:
+
+* Test environment
+* Dataset size
+* Concurrency
+* Measured p50, p95, or p99 as applicable
+* Accepted target
+* Reproduction command
+
+Security blockers must include:
+
+* Affected component
+* Vulnerability or misconfiguration
+* Exploitability or deployment relevance
+* Scan or reproduction evidence
+* Smallest remediation
+
 A reviewer must not block the phase using:
 
-* A subjective style preference
+* Pure style preference
 * An excluded future requirement
 * A speculative concern without reproduction
-* A task status that conflicts with this contract
-* A broad redesign where a bounded correction exists
+* A task status that conflicts with this active-phase contract
+* A proposed architectural rewrite where a bounded correction exists
 
 ---
 
@@ -1642,43 +2121,45 @@ A reviewer must not block the phase using:
 
 The active phase is defined by this file.
 
-The presence of partial future-phase code does not make that code part of Phase 4.
+The presence of partial future-phase code does not make that code part of Phase 5.
 
 `TASKS.md` records implementation status but cannot expand the active phase.
 
 The PRD and TDD define the complete product but do not make every future requirement part of the current phase.
 
-When incomplete future-phase code interferes with Phase 4, remove or isolate it rather than completing it.
+When incomplete future-phase code interferes with Phase 5, remove or isolate it rather than completing it.
 
 ---
 
-# Phase 4 Exit Procedure
+# Phase 5 Exit Procedure
 
 When the completion gate passes:
 
-1. Confirm all remote CI checks are green.
-2. Confirm `API-001` through `API-003` are marked `COMPLETE`.
-3. Confirm `WEB-001` through `WEB-004` are marked `COMPLETE`.
-4. Confirm later tasks remain factually marked.
-5. Commit all final code and documentation changes.
-6. Tag the repository:
+1. Confirm all required remote CI checks are green.
+2. Confirm staging smoke and readiness checks pass.
+3. Confirm `OPS-001` through `OPS-004` are marked `COMPLETE`.
+4. Confirm `QA-001` through `QA-003` are marked `COMPLETE`.
+5. Confirm later tasks remain factually marked.
+6. Commit all final code and documentation changes.
+7. Tag the repository:
 
 ```bash
-git tag phase-4-complete
-git push origin phase-4-complete
+git tag phase-5-complete
+git push origin phase-5-complete
 ```
 
-7. Archive this file:
+8. Archive this file:
 
 ```bash
-cp PHASE.md docs/phases/PHASE-4-COMPLETE.md
+cp PHASE.md docs/phases/PHASE-5-COMPLETE.md
 ```
 
-8. Commit the archived contract:
+9. Commit the archived contract:
 
 ```bash
-git add docs/phases/PHASE-4-COMPLETE.md
-git commit -m "docs: archive completed phase 4 contract"
+git add docs/phases/PHASE-5-COMPLETE.md
+git commit -m "docs: archive completed phase 5 contract"
 ```
 
-9. Replace `PHASE.md` with the approved Phase 5 contract.
+10. Replace `PHASE.md` with the approved Phase 6 contract.
+11. Do not deploy to production without explicit owner approval.

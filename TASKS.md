@@ -64,8 +64,8 @@
 | OPS-002 | Add structured logging | Unassigned | NOT STARTED | API-002 |
 | OPS-003 | Add rate limiting | Unassigned | NOT STARTED | API-002 |
 | OPS-004 | Add monitoring and error reporting | Unassigned | NOT STARTED | OPS-002 |
-| QA-001 | Add end-to-end tests | Claude | COMPLETE | WEB-004 |
-| QA-002 | Add routing performance tests | Unassigned | NOT STARTED | RTE-006 |
+| QA-001 | Add end-to-end tests | Unassigned | NOT STARTED | WEB-004 |
+| QA-002 | Add routing and API performance tests | Unassigned | NOT STARTED | RTE-006 |
 | QA-003 | Add timezone edge-case suite | Unassigned | NOT STARTED | RTE-004 |
 
 Agents should update statuses, but they must not delete incomplete tasks.
