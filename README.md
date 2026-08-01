@@ -7,7 +7,7 @@ Search and discover every Frontier destination reachable from your home airport 
 ### Prerequisites
 
 - Node.js 22+
-- Python 3.11+
+- Python 3.10+
 - Docker & Docker Compose
 - pnpm 10.17+
 
