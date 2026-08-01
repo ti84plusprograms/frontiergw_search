@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint lint-fix format-check typecheck build clean docker-up docker-down
+.PHONY: help install dev test openapi lint lint-fix format-check typecheck build clean docker-up docker-down
 
 help:
 	@echo "Frontier GoWild Destination Explorer"
@@ -30,6 +30,10 @@ dev:
 test:
 	@echo "Running backend tests..."
 	cd apps/api && source .venv/bin/activate && pytest tests/ -v
+
+openapi:
+	@echo "Exporting OpenAPI schema to apps/api/openapi.json..."
+	cd apps/api && source .venv/bin/activate && python scripts/export_openapi.py
 
 format-check:
 	@echo "Checking backend formatting (no changes written)..."
