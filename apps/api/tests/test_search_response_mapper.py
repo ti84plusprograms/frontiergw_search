@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+
+import pytest
+from pydantic import ValidationError
 
 from app.db.models.airport import Airport
 from app.domain.enums import PriceStatus
@@ -125,3 +128,29 @@ def test_freshness_populated():
     assert resp.data_freshness.schedule_version == "2026-08-01"
     assert resp.data_freshness.schedule_effective_end == date(2026, 10, 31)
     assert resp.data_freshness.availability_checked_at is None
+
+
+def test_response_rejects_naive_generated_timestamp():
+    with pytest.raises(ValidationError):
+        build_search_response(
+            origin_airport=ATL,
+            departure_date=date(2026, 8, 4),
+            itineraries=[_itin()],
+            airports=AIRPORTS,
+            schedule_status=STATUS,
+            max_results=250,
+            generated_at=datetime(2026, 8, 4, 12, 0),
+        )
+
+
+def test_response_accepts_utc_generated_timestamp():
+    response = build_search_response(
+        origin_airport=ATL,
+        departure_date=date(2026, 8, 4),
+        itineraries=[_itin()],
+        airports=AIRPORTS,
+        schedule_status=STATUS,
+        max_results=250,
+        generated_at=datetime(2026, 8, 4, 12, 0, tzinfo=timezone.utc),
+    )
+    assert response.generated_at.utcoffset() == timezone.utc.utcoffset(response.generated_at)

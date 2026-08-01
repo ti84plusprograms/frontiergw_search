@@ -17,7 +17,12 @@ router = APIRouter(tags=["airports"])
 @router.get("/airports", response_model=AirportSearchResponse, responses=ERROR_RESPONSES)
 def get_airports(
     db: Session = Depends(get_db),  # noqa: B008
-    query: str = Query(..., min_length=1, description="Airport code, city, or name."),
+    query: str = Query(
+        ...,
+        min_length=1,
+        pattern=r".*\S.*",
+        description="Non-whitespace airport code, city, or name.",
+    ),
     limit: int = Query(
         default=settings.airport_search_default_limit,
         ge=1,

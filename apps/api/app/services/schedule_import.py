@@ -24,6 +24,11 @@ def _aware(value: datetime) -> datetime:
     return value
 
 
+def _stored_aware(value: datetime) -> datetime:
+    """Restore UTC on timestamps read through dialects that drop tzinfo (notably SQLite)."""
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
 def _canonical_checksum(records: list[NormalizedFlightRecord]) -> str:
     payload = [
         {
@@ -286,7 +291,7 @@ def get_active_schedule_status(db: Session) -> dict[str, Any] | None:
     return {
         "source": source.name,
         "version": source.version,
-        "retrieved_at": source.retrieved_at,
+        "retrieved_at": _stored_aware(source.retrieved_at),
         "effective_start": effective_start,
         "effective_end": None if open_ended_count else effective_end,
         "route_count": route_count or 0,

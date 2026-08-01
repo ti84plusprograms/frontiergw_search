@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import time
 
+import pytest
+
 from tests.routing_fixtures import add_flight, make_source, seed_airports
 
 VALID = {"origin": "ATL", "departure_date": "2026-08-04", "max_connections": 0}
@@ -59,6 +61,23 @@ def test_invalid_connection_range_is_422(client, db_session):
         json={**VALID, "min_connection_minutes": 200, "max_connection_minutes": 100},
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("min_connection_minutes", 19),
+        ("min_connection_minutes", 361),
+        ("max_connection_minutes", 19),
+        ("max_connection_minutes", 361),
+        ("max_total_duration_minutes", 59),
+        ("max_total_duration_minutes", 1441),
+    ],
+)
+def test_bounded_search_values_are_422_before_routing(client, db_session, field, value):
+    resp = client.post("/api/v1/search", json={**VALID, field: value})
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "INVALID_REQUEST"
 
 
 def test_bad_date_format_is_422(client, db_session):

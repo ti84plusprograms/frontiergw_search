@@ -135,6 +135,13 @@ def test_empty_query_is_422(client, db_session):
     assert resp.status_code == 422
 
 
+def test_whitespace_only_query_is_422(client, db_session):
+    _seed(db_session)
+    resp = client.get("/api/v1/airports", params={"query": "   "})
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "INVALID_REQUEST"
+
+
 def test_deterministic_repeated(client, db_session):
     _seed(db_session)
     a = client.get("/api/v1/airports", params={"query": "o"}).json()

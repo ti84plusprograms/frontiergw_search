@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import datetime, time, timezone
 
+import pytest
+from pydantic import ValidationError
+
+from app.schemas.schedule_status import ScheduleStatusResponse
 from tests.routing_fixtures import add_flight, make_source, seed_airports
 
 
@@ -30,3 +34,17 @@ def test_active_schedule_status(client, db_session):
     assert body["scheduled_flight_count"] == 1
     # Effective range serialized as ISO dates.
     assert body["effective_start"] == "2026-08-01"
+    assert body["retrieved_at"].endswith(("Z", "+00:00"))
+
+
+def test_schedule_status_rejects_naive_timestamp():
+    with pytest.raises(ValidationError):
+        ScheduleStatusResponse(active=True, retrieved_at=datetime(2026, 8, 1, 12, 0))
+
+
+def test_schedule_status_accepts_aware_timestamp():
+    value = ScheduleStatusResponse(
+        active=True, retrieved_at=datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    )
+    assert value.retrieved_at is not None
+    assert value.retrieved_at.utcoffset() == timezone.utc.utcoffset(value.retrieved_at)

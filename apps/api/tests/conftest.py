@@ -1,7 +1,8 @@
 import os
+import uuid
 
 import pytest
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -10,7 +11,7 @@ from app.db import Base
 
 @pytest.fixture(scope="session")
 def test_db():
-    """Create a test database with migrations applied."""
+    """Create isolated test tables without modifying the application's public schema."""
     db_url = os.getenv(
         "DATABASE_URL_TEST",
         os.getenv("DATABASE_URL", "sqlite:///:memory:"),
@@ -25,11 +26,6 @@ def test_db():
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
         )
-    else:
-        engine = create_engine(db_url, echo=False)
-
-    # Enable foreign keys for SQLite
-    if "sqlite" in db_url:
 
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_conn, connection_record):  # noqa: ARG001
@@ -39,12 +35,30 @@ def test_db():
 
         Base.metadata.drop_all(engine)
         Base.metadata.create_all(engine)
-    else:
-        # For PostgreSQL, just create all tables; migrations are validated in CI
-        Base.metadata.drop_all(engine)
-        Base.metadata.create_all(engine)
+        try:
+            yield engine
+        finally:
+            engine.dispose()
+        return
 
-    return engine
+    schema = f"gowild_test_{uuid.uuid4().hex}"
+    admin_engine = create_engine(db_url, echo=False, isolation_level="AUTOCOMMIT")
+    with admin_engine.connect() as connection:
+        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+
+    engine = create_engine(
+        db_url,
+        echo=False,
+        connect_args={"options": f"-csearch_path={schema}"},
+    )
+    try:
+        Base.metadata.create_all(engine)
+        yield engine
+    finally:
+        engine.dispose()
+        with admin_engine.connect() as connection:
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        admin_engine.dispose()
 
 
 @pytest.fixture

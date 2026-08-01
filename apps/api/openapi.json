@@ -608,7 +608,8 @@
           },
           "max_connection_minutes": {
             "default": 240,
-            "exclusiveMinimum": 0.0,
+            "maximum": 360.0,
+            "minimum": 20.0,
             "title": "Max Connection Minutes",
             "type": "integer"
           },
@@ -633,6 +634,8 @@
           "max_total_duration_minutes": {
             "anyOf": [
               {
+                "maximum": 1440.0,
+                "minimum": 60.0,
                 "type": "integer"
               },
               {
@@ -644,7 +647,8 @@
           },
           "min_connection_minutes": {
             "default": 45,
-            "exclusiveMinimum": 0.0,
+            "maximum": 360.0,
+            "minimum": 20.0,
             "title": "Min Connection Minutes",
             "type": "integer"
           },
@@ -803,13 +807,14 @@
         "operationId": "get_airports_api_v1_airports_get",
         "parameters": [
           {
-            "description": "Airport code, city, or name.",
+            "description": "Non-whitespace airport code, city, or name.",
             "in": "query",
             "name": "query",
             "required": true,
             "schema": {
-              "description": "Airport code, city, or name.",
+              "description": "Non-whitespace airport code, city, or name.",
               "minLength": 1,
+              "pattern": ".*\\S.*",
               "title": "Query",
               "type": "string"
             }
