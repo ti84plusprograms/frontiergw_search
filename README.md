@@ -130,7 +130,7 @@ cd apps/web
 pnpm install
 
 # Develop
-pnpm dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 pnpm dev
 
 # Type check
 pnpm type-check
@@ -138,9 +138,26 @@ pnpm type-check
 # Lint
 pnpm lint
 
+# Unit, component, and accessibility tests
+pnpm test
+
+# Browser tests (desktop, mobile, keyboard, and accessibility)
+pnpm exec playwright install chromium
+pnpm test:e2e
+
+# Verify generated API types are current
+pnpm check:types
+
 # Build
 pnpm build
 ```
+
+Search and results URLs use normalized query parameters so refresh, sharing, and
+browser navigation preserve criteria. Supported parameters are `origin`, `date`,
+`connections`, `min_conn`, `max_conn`, `depart_after`, `depart_before`,
+`arrive_before`, `max_duration`, `max_price`, `domestic`, `international`, and
+`sort`. Standard defaults are omitted from generated URLs; malformed or
+contradictory values are rejected instead of being silently applied.
 
 ### Docker Compose
 

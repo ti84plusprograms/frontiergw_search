@@ -83,7 +83,15 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check generated API types
+        working-directory: apps/web
+        run: pnpm check:types
+
+      - name: Unit and component tests
+        working-directory: apps/web
+        run: pnpm test
 
       - name: Type check
         working-directory: apps/web
@@ -96,3 +104,11 @@ jobs:
       - name: Build
         working-directory: apps/web
         run: pnpm build
+
+      - name: Install Playwright Chromium
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: End-to-end and accessibility tests
+        working-directory: apps/web
+        run: pnpm test:e2e
