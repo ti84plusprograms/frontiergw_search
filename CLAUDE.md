@@ -52,14 +52,16 @@ For every substantial task:
 
 Once the repository is initialized, maintain the authoritative commands below:
 
-- **Install:** `cd apps/api && python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"` (backend); `pnpm install` (frontend)
+- **Install:** `cd apps/api && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.lock && pip install -e . --no-deps` (backend); `pnpm install --frozen-lockfile` (frontend)
 - **Start development:** `docker compose -f infrastructure/docker-compose.yml up` or `make dev`
 - **Format:** Backend: `cd apps/api && source .venv/bin/activate && ruff format .`
 - **Lint:** Backend: `cd apps/api && source .venv/bin/activate && ruff check`; Frontend: `cd apps/web && pnpm lint`
 - **Type check:** Backend: `cd apps/api && source .venv/bin/activate && mypy app`; Frontend: `cd apps/web && pnpm type-check`
 - **Unit tests:** Backend: `cd apps/api && source .venv/bin/activate && pytest tests/ -v`
-- **Integration tests:** (deferred to Phase 5)
-- **End-to-end tests:** (deferred to Phase 5)
+- **Integration tests:** `cd apps/api && source .venv/bin/activate && DATABASE_URL_TEST=postgresql+psycopg://gowild:gowild@localhost:5432/gowild pytest tests/test_routing_integration.py tests/test_api_search_integration.py -v`
+- **Operations tests:** `make test-ops`
+- **End-to-end tests:** mocked `cd apps/web && pnpm test:e2e`; real stack `make test-e2e-fullstack`
+- **Load tests:** smoke `make load-smoke`; 20-user baseline `make load-baseline`
 - **Build:** Frontend: `cd apps/web && pnpm build`; Docker: `docker compose -f infrastructure/docker-compose.yml build`
 
 See `Makefile` for convenience targets.

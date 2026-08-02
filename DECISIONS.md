@@ -138,3 +138,15 @@ Every response carries an `X-Request-ID` header and the same id in the error bod
 **Approved by:** Project owner (delegated instruction to proceed with Phase 4)
 
 ---
+
+## ADR-010: Phase 5 cache, monitoring, and ephemeral staging policy
+
+**Status:** Accepted
+**Date:** 2026-08-01
+**Context:** Phase 5 requires an approved observability platform, a Redis failure policy, safe cache identity/invalidation, and a staging target. The implementation must not introduce a required paid service or make optional infrastructure a search dependency.
+**Decision:** Use Sentry for optional backend/frontend error reporting and Prometheus-compatible in-process metrics. PII collection, session replay, and trace sampling are disabled by default. Redis-backed caching and anonymous rate limiting fail open after bounded connection/read timeouts; PostgreSQL and an active schedule remain readiness requirements. Search cache identity includes the cache schema, routing algorithm, active source/version, canonical criteria, result limit, and pricing fingerprint. Imports use versioned keys plus bounded best-effort post-commit invalidation. Only explicitly configured proxy CIDR networks may supply client forwarding headers. GitHub Actions with ephemeral Docker Compose services is the Phase 5 staging environment; it uses only synthetic fixtures and proves Redis outage/recovery. Production deployment remains manually approved.
+**Consequences:** Cache, limiter, monitoring, and metrics failures cannot change deterministic search results or roll back imports. Search may be slower and temporarily unthrottled during Redis outages. Sentry and public metrics exposure remain disabled unless explicitly configured. Python deployments and CI use checked-in requirement locks; frontend builds use the pnpm lockfile.
+**PRD/TDD sections affected:** TDD §2.2, §17, §23.3, §25, §27; PHASE.md OPS-001 through OPS-004, Deployment Validation, CI/CD
+**Approved by:** Project owner (approved Phase 5 implementation plan and assumptions)
+
+---
