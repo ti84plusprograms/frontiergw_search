@@ -13,10 +13,20 @@ CONNECTING = {"origin": "ATL", "departure_date": "2026-08-04", "max_connections"
 class SyntheticSearchUser(HttpUser):
     wait_time = between(0.1, 0.5)
     sequence = count()
+    client_sequence = count(1)
+
+    def on_start(self) -> None:
+        client_number = (next(self.client_sequence) - 1) % 254 + 1
+        self.search_headers = {"X-Forwarded-For": f"198.51.100.{client_number}"}
 
     @task(4)
     def cached_search(self) -> None:
-        self.client.post("/api/v1/search", json=DIRECT, name="search/cached-direct")
+        self.client.post(
+            "/api/v1/search",
+            json=DIRECT,
+            headers=self.search_headers,
+            name="search/cached-direct",
+        )
 
     @task(2)
     def uncached_direct(self) -> None:
@@ -24,6 +34,7 @@ class SyntheticSearchUser(HttpUser):
         self.client.post(
             "/api/v1/search",
             json={**DIRECT, "max_price": f"{1000 + value}.00"},
+            headers=self.search_headers,
             name="search/uncached-direct",
         )
 
@@ -33,6 +44,7 @@ class SyntheticSearchUser(HttpUser):
         self.client.post(
             "/api/v1/search",
             json={**CONNECTING, "max_price": f"{2000 + value}.00"},
+            headers=self.search_headers,
             name="search/uncached-connecting",
         )
 
@@ -41,6 +53,7 @@ class SyntheticSearchUser(HttpUser):
         self.client.post(
             "/api/v1/search",
             json={"origin": "ORL", "departure_date": "2026-08-04", "max_connections": 0},
+            headers=self.search_headers,
             name="search/no-results",
         )
 
@@ -55,7 +68,11 @@ class SyntheticSearchUser(HttpUser):
     @task
     def rate_burst(self) -> None:
         with self.client.post(
-            "/api/v1/search", json=DIRECT, name="search/rate-burst", catch_response=True
+            "/api/v1/search",
+            json=DIRECT,
+            headers={"X-Forwarded-For": "203.0.113.1"},
+            name="search/rate-burst",
+            catch_response=True,
         ) as response:
             if response.status_code in {200, 429}:
                 response.success()
