@@ -79,7 +79,6 @@ services:
       - "${WEB_PORT:-3000}:3000"
     depends_on:
       - api
-    command: pnpm --dir apps/web start
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 5s
