@@ -156,7 +156,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
 
       - name: Node dependency audit
         run: pnpm audit --audit-level high

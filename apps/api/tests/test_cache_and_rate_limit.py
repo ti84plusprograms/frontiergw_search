@@ -76,7 +76,8 @@ def test_redis_timeout_fails_open_for_cache_and_rate_limit():
     assert result.enforced is False
 
 
-def test_rate_limit_boundary_and_reset_semantics():
+def test_rate_limit_boundary_and_reset_semantics(monkeypatch):
+    monkeypatch.setattr("app.services.cache_service.settings.rate_limit_enabled", True)
     cache = CacheService(FakeRedis(), enabled=True)  # type: ignore[arg-type]
     request = _request("203.0.113.4")
     assert enforce_rate_limit(request, endpoint="search", limit=2, cache=cache).allowed
@@ -89,7 +90,8 @@ def test_rate_limit_boundary_and_reset_semantics():
         raise AssertionError("third request must be rate limited")
 
 
-def test_rate_limit_is_independent_from_cache_enablement():
+def test_rate_limit_is_independent_from_cache_enablement(monkeypatch):
+    monkeypatch.setattr("app.services.cache_service.settings.rate_limit_enabled", True)
     cache = CacheService(FakeRedis(), enabled=False)  # type: ignore[arg-type]
     request = _request("203.0.113.5")
     assert enforce_rate_limit(request, endpoint="search", limit=1, cache=cache).enforced

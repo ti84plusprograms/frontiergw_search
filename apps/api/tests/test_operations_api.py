@@ -112,6 +112,7 @@ def test_airport_rate_limit_uses_standard_error(client, db_session, monkeypatch)
     from tests.test_api_airports import _seed
 
     _seed(db_session)
+    monkeypatch.setattr("app.services.cache_service.settings.rate_limit_enabled", True)
     cache = CacheService(FakeRedis(), enabled=True)  # type: ignore[arg-type]
     monkeypatch.setattr("app.api.airports.get_cache_service", lambda: cache)
     monkeypatch.setattr("app.api.airports.settings.airport_rate_limit_per_minute", 2)
