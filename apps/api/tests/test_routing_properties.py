@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from hypothesis import assume, given
 from hypothesis import strategies as st
@@ -24,6 +25,13 @@ UTC = timezone.utc
 EST = PriceEstimator(Decimal("14.91"), international_estimation_enabled=False)
 
 _CODES = ["ATL", "DEN", "LAS", "MCO", "PHX", "ORL", "CUN"]
+_ZONES = [
+    ZoneInfo("America/New_York"),
+    ZoneInfo("America/Denver"),
+    ZoneInfo("America/Los_Angeles"),
+    ZoneInfo("America/Phoenix"),
+    ZoneInfo("UTC"),
+]
 
 
 def _flight(origin, dest, dep_minute, dur_minutes, fnum="1", fid=None):
@@ -76,6 +84,35 @@ def one_stop_itineraries(draw):
         destination_code=dest,
         segments=(ItinerarySegment(1, first), ItinerarySegment(2, second)),
         price=EST.estimate(2, is_international=False),
+    )
+
+
+@st.composite
+def timezone_aware_direct_itineraries(draw):
+    origin, dest = draw(st.sampled_from(_CODES)), draw(st.sampled_from(_CODES))
+    assume(origin != dest)
+    origin_zone = draw(st.sampled_from(_ZONES))
+    destination_zone = draw(st.sampled_from(_ZONES))
+    departure_utc = datetime(2026, 1, 1, tzinfo=UTC) + timedelta(
+        minutes=draw(st.integers(min_value=0, max_value=525_599))
+    )
+    duration = draw(st.integers(min_value=1, max_value=720))
+    flight = FlightInstance(
+        scheduled_flight_id=uuid.uuid4(),
+        carrier_code="F9",
+        flight_number="TZ1",
+        origin_code=origin,
+        destination_code=dest,
+        departure_at=departure_utc.astimezone(origin_zone),
+        arrival_at=(departure_utc + timedelta(minutes=duration)).astimezone(destination_zone),
+        operating_date=departure_utc.astimezone(origin_zone).date(),
+        data_source_id=uuid.uuid4(),
+    )
+    return Itinerary(
+        origin_code=origin,
+        destination_code=dest,
+        segments=(ItinerarySegment(1, flight),),
+        price=EST.estimate(1, is_international=False),
     )
 
 
@@ -146,3 +183,19 @@ def test_dedup_idempotent(items):
 @given(st.lists(direct_itineraries(), max_size=8), st.sampled_from(list(SortMode)))
 def test_sorting_deterministic(items, mode):
     assert sort_itineraries(items, mode) == sort_itineraries(list(items), mode)
+
+
+@given(timezone_aware_direct_itineraries())
+def test_generated_timezone_aware_schedule_preserves_absolute_chronology(it):
+    flight = it.segments[0].flight
+    assert flight.departure_at.tzinfo is not None
+    assert flight.arrival_at.tzinfo is not None
+    assert flight.arrival_at.astimezone(UTC) > flight.departure_at.astimezone(UTC)
+    assert it.total_duration_minutes == flight.duration_minutes
+    rebuilt = Itinerary(
+        origin_code=it.origin_code,
+        destination_code=it.destination_code,
+        segments=it.segments,
+        price=it.price,
+    )
+    assert rebuilt.itinerary_id == it.itinerary_id

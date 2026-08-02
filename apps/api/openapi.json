@@ -137,6 +137,7 @@
           "INVALID_PRICE_FILTER",
           "UNSUPPORTED_SORT",
           "DATABASE_UNAVAILABLE",
+          "RATE_LIMITED",
           "INTERNAL_ERROR"
         ],
         "title": "ApiErrorCode",
@@ -813,6 +814,7 @@
             "required": true,
             "schema": {
               "description": "Non-whitespace airport code, city, or name.",
+              "maxLength": 100,
               "minLength": 1,
               "pattern": ".*\\S.*",
               "title": "Query",
@@ -855,6 +857,16 @@
             },
             "description": "Validation error"
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -890,9 +902,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
+                  "additionalProperties": true,
                   "title": "Response Health Api V1 Health Get",
                   "type": "object"
                 }
@@ -901,7 +911,54 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Health"
+        "summary": "Health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "operationId": "live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Live Api V1 Health Live Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
+        "tags": [
+          "health"
+        ]
       }
     },
     "/api/v1/schedules/status": {
@@ -927,6 +984,16 @@
               }
             },
             "description": "Validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
           },
           "500": {
             "content": {
@@ -988,6 +1055,16 @@
               }
             },
             "description": "Validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
           },
           "500": {
             "content": {

@@ -6,9 +6,12 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.metrics import SCHEDULE_IMPORT_FAILURES, SCHEDULE_IMPORTS
+from app.core.observability import log_event
 from app.db import DataSource, Route, ScheduledFlight
 from app.providers.schedule import ScheduleImportBatch, ScheduleProvider
 from app.schemas.schedule_import import ImportResult, NormalizedFlightRecord
+from app.services.cache_service import get_cache_service
 from app.services.normalization import normalize_flight_record
 from app.services.schedule_quality import (
     BatchQualityStats,
@@ -70,7 +73,13 @@ class ScheduleImportService:
         end_date: date = date.max,
         activate: bool = True,
     ) -> ImportResult:
-        result = ImportResult(started_at=datetime.now(timezone.utc))
+        result = ImportResult(
+            started_at=datetime.now(timezone.utc),
+            source_id=None,
+            version=None,
+            error_message=None,
+        )
+        log_event("schedule_import.started")
 
         try:
             batch = await provider.fetch_schedule(start_date, end_date)
@@ -244,6 +253,8 @@ class ScheduleImportService:
 
                 result.success = True
                 result.activation_result = "activated"
+            # The transaction has committed. Cache failure must never roll it back.
+            get_cache_service().invalidate_prefix("schedule-status:")
         # Database and provider failures are reported rather than swallowed silently.
         except Exception as exc:
             db.rollback()
@@ -254,6 +265,19 @@ class ScheduleImportService:
             result.completed_at = datetime.now(timezone.utc)
             if result.started_at is not None:
                 result.duration_seconds = (result.completed_at - result.started_at).total_seconds()
+            # Record every exit path, including validation failures that return from
+            # inside the transaction block. Metrics must never affect import state.
+            if result.success:
+                SCHEDULE_IMPORTS.labels(outcome=result.activation_result or "success").inc()
+                log_event("schedule_import.completed", schedule_version=result.version)
+            else:
+                SCHEDULE_IMPORTS.labels(outcome="failed").inc()
+                SCHEDULE_IMPORT_FAILURES.inc()
+                log_event(
+                    "schedule_import.failed",
+                    error_code=result.error_code,
+                    failure_category=result.error_code,
+                )
 
         return result
 

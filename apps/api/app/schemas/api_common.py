@@ -25,6 +25,7 @@ class ApiErrorCode(str, Enum):
     INVALID_PRICE_FILTER = "INVALID_PRICE_FILTER"
     UNSUPPORTED_SORT = "UNSUPPORTED_SORT"
     DATABASE_UNAVAILABLE = "DATABASE_UNAVAILABLE"
+    RATE_LIMITED = "RATE_LIMITED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -58,6 +59,7 @@ class ApiErrorResponse(BaseModel):
 # error schema (and ApiErrorCode enum) appear in the generated contract.
 ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
     422: {"model": ApiErrorResponse, "description": "Validation error"},
+    429: {"model": ApiErrorResponse, "description": "Rate limit exceeded"},
     500: {"model": ApiErrorResponse, "description": "Internal error"},
     503: {"model": ApiErrorResponse, "description": "No active schedule"},
 }

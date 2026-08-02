@@ -12,6 +12,8 @@ dependencies = [
     "alembic>=1.13",
     "psycopg[binary]>=3.1",
     "redis>=5.0",
+    "prometheus-client>=0.21,<1",
+    "sentry-sdk[fastapi]>=2.20,<3",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +25,7 @@ dev = [
     "mypy>=1.10",
     # Property-based tests for routing invariants (PHASE.md §Property-Based Tests).
     "hypothesis>=6.100",
+    "locust>=2.32,<3",
 ]
 
 [build-system]

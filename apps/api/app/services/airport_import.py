@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db import Airport
 from app.schemas.airport_import import AirportImportResult, AirportRecord
+from app.services.cache_service import get_cache_service
 
 
 class AirportValidationError(ValueError):
@@ -94,4 +95,6 @@ class AirportSeedImporter:
                     result.updated_count += 1
                 else:
                     result.skipped_count += 1
+        # Post-commit and best effort: a Redis failure must not affect imported rows.
+        get_cache_service().invalidate_prefix("airport:")
         return result
