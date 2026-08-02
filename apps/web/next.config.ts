@@ -9,6 +9,14 @@ const csp = buildContentSecurityPolicy(
 
 const config: NextConfig = {
   reactStrictMode: true,
+  output: "standalone",
+  outputFileTracingExcludes: {
+    "*": [
+      "**/node_modules/.pnpm/@esbuild+*/**",
+      "**/node_modules/.pnpm/esbuild@*/**",
+      "**/node_modules/.pnpm/node_modules/esbuild",
+    ],
+  },
   async headers() {
     return [
       {
