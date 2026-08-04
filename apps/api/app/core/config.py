@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+from ipaddress import ip_network
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -8,9 +9,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
+    app_release: str = "development"
     database_url: str = "postgresql+psycopg://gowild:gowild@localhost:5432/gowild"
     redis_url: str = "redis://localhost:6379/0"
     log_level: str = "INFO"
+    log_format: str = "console"
     schedule_version: str = "unset"
 
     # --- Phase 3 routing engine configuration (PHASE.md §Configuration Requirements) ---
@@ -36,6 +39,39 @@ class Settings(BaseSettings):
     # Airport-search limits (GET /api/v1/airports).
     airport_search_default_limit: int = 10
     airport_search_max_limit: int = 25
+
+    # --- Phase 5 caching and resilience ---
+    cache_enabled: bool = True
+    cache_schema_version: str = "v1"
+    routing_algorithm_version: str = "v1"
+    airport_search_cache_ttl_seconds: int = 21600
+    schedule_status_cache_ttl_seconds: int = 300
+    search_cache_ttl_seconds: int = 1800
+    same_day_search_cache_ttl_seconds: int = 300
+    no_result_cache_ttl_seconds: int = 300
+    cache_error_backoff_seconds: int = 30
+    cache_operation_timeout_ms: int = 100
+    cache_lock_ttl_seconds: int = 10
+
+    # Rate limits use Redis and fail open when it is unavailable.
+    rate_limit_enabled: bool = True
+    airport_rate_limit_per_minute: int = 120
+    search_rate_limit_per_minute: int = 30
+    schedule_status_rate_limit_per_minute: int = 60
+    trusted_proxy_networks: str = ""
+
+    # Monitoring and security.
+    monitoring_enabled: bool = False
+    sentry_dsn: str = ""
+    metrics_enabled: bool = True
+    metrics_bearer_token: str = ""
+    request_body_max_bytes: int = 65536
+    request_id_max_length: int = 128
+    airport_query_max_length: int = 100
+    content_security_policy: str = (
+        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+    )
+    hsts_enabled: bool = False
 
     @field_validator("domestic_estimated_segment_price_usd", mode="before")
     @classmethod
@@ -71,12 +107,53 @@ class Settings(BaseSettings):
             raise ValueError("AIRPORT_SEARCH_DEFAULT_LIMIT must be positive")
         if self.airport_search_max_limit < self.airport_search_default_limit:
             raise ValueError("AIRPORT_SEARCH_MAX_LIMIT must be >= AIRPORT_SEARCH_DEFAULT_LIMIT")
+        positive_fields = {
+            "AIRPORT_SEARCH_CACHE_TTL_SECONDS": self.airport_search_cache_ttl_seconds,
+            "SCHEDULE_STATUS_CACHE_TTL_SECONDS": self.schedule_status_cache_ttl_seconds,
+            "SEARCH_CACHE_TTL_SECONDS": self.search_cache_ttl_seconds,
+            "SAME_DAY_SEARCH_CACHE_TTL_SECONDS": self.same_day_search_cache_ttl_seconds,
+            "NO_RESULT_CACHE_TTL_SECONDS": self.no_result_cache_ttl_seconds,
+            "CACHE_ERROR_BACKOFF_SECONDS": self.cache_error_backoff_seconds,
+            "CACHE_OPERATION_TIMEOUT_MS": self.cache_operation_timeout_ms,
+            "CACHE_LOCK_TTL_SECONDS": self.cache_lock_ttl_seconds,
+            "AIRPORT_RATE_LIMIT_PER_MINUTE": self.airport_rate_limit_per_minute,
+            "SEARCH_RATE_LIMIT_PER_MINUTE": self.search_rate_limit_per_minute,
+            "SCHEDULE_STATUS_RATE_LIMIT_PER_MINUTE": self.schedule_status_rate_limit_per_minute,
+            "REQUEST_BODY_MAX_BYTES": self.request_body_max_bytes,
+            "REQUEST_ID_MAX_LENGTH": self.request_id_max_length,
+            "AIRPORT_QUERY_MAX_LENGTH": self.airport_query_max_length,
+        }
+        for name, value in positive_fields.items():
+            if value <= 0:
+                raise ValueError(f"{name} must be positive")
+        if not self.cache_schema_version.strip() or not self.routing_algorithm_version.strip():
+            raise ValueError("cache and routing versions must be non-empty")
+        if self.log_format not in {"console", "json"}:
+            raise ValueError("LOG_FORMAT must be console or json")
+        for network_value in self.trusted_proxy_networks_list:
+            try:
+                ip_network(network_value, strict=False)
+            except ValueError as exc:
+                raise ValueError("TRUSTED_PROXY_NETWORKS contains an invalid network") from exc
+        if self.app_env.lower() in {"production", "staging"}:
+            if not self.cors_origins_list or "*" in self.cors_origins_list:
+                raise ValueError("production and staging require an explicit CORS allowlist")
+            if self.app_release == "development":
+                raise ValueError("production and staging require APP_RELEASE")
+            if self.metrics_enabled and not self.metrics_bearer_token:
+                raise ValueError(
+                    "production and staging require METRICS_BEARER_TOKEN when metrics are enabled"
+                )
         return self
 
     @property
     def cors_origins_list(self) -> list[str]:
         """Parsed, trimmed list of allowed CORS origins (empty entries dropped)."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def trusted_proxy_networks_list(self) -> list[str]:
+        return [value.strip() for value in self.trusted_proxy_networks.split(",") if value.strip()]
 
 
 settings = Settings()

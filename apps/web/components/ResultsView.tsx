@@ -27,10 +27,14 @@ export function ResultsView() {
   const criteria = parseSearchParams(new URLSearchParams(params.toString()));
 
   const query = useQuery({
-    queryKey: ["search", criteria && serializeSearchParams(criteria).toString()],
+    queryKey: [
+      "search",
+      criteria && serializeSearchParams(criteria).toString(),
+    ],
     queryFn: ({ signal }) => postSearch(toSearchRequest(criteria!), signal),
     enabled: !!criteria,
-    retry: (count, err) => !(err instanceof ApiError && err.isExpected) && count < 1,
+    retry: (count, err) =>
+      !(err instanceof ApiError && err.isExpected) && count < 1,
   });
 
   if (!criteria) {
@@ -47,7 +51,9 @@ export function ResultsView() {
   }
 
   function changeSort(sort: SortMode) {
-    router.push(`/results?${serializeSearchParams({ ...criteria!, sort }).toString()}`);
+    router.push(
+      `/results?${serializeSearchParams({ ...criteria!, sort }).toString()}`,
+    );
   }
 
   return (
@@ -57,7 +63,8 @@ export function ResultsView() {
       </h1>
 
       <p className="mt-1 text-slate-600">
-        {criteria.date} · {criteria.connections === 1 ? "Up to one stop" : "Direct only"}
+        {criteria.date} ·{" "}
+        {criteria.connections === 1 ? "Up to one stop" : "Direct only"}
         {criteria.domesticOnly && " · Domestic"}
         {criteria.internationalOnly && " · International"}
         {criteria.maxPrice != null && ` · ≤ $${criteria.maxPrice}`}
@@ -98,17 +105,21 @@ export function ResultsView() {
           </div>
         )}
 
-        {query.isError && <ErrorState error={query.error} onRetry={() => query.refetch()} />}
+        {query.isError && (
+          <ErrorState error={query.error} onRetry={() => query.refetch()} />
+        )}
 
         {query.data && (
           <>
             <FreshnessPanel data={query.data} />
             <Warnings warnings={query.data.warnings} />
-            <p className="mt-2 font-medium">{query.data.result_count} result(s)</p>
+            <p className="mt-2 font-medium">
+              {query.data.result_count} result(s)
+            </p>
             {query.data.results.length === 0 ? (
               <p className="mt-4 rounded bg-slate-50 px-3 py-6 text-center text-slate-600">
-                No Frontier destinations matched your criteria. Try enabling one stop or
-                widening filters.
+                No Frontier destinations matched your criteria. Try enabling one
+                stop or widening filters.
               </p>
             ) : (
               <ul className="mt-4 space-y-4">
@@ -124,22 +135,40 @@ export function ResultsView() {
   );
 }
 
-function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+function ErrorState({
+  error,
+  onRetry,
+}: {
+  error: unknown;
+  onRetry: () => void;
+}) {
   const expected = error instanceof ApiError && error.isExpected;
-  const noSchedule = error instanceof ApiError && error.code === "NO_ACTIVE_SCHEDULE";
+  const noSchedule =
+    error instanceof ApiError && error.code === "NO_ACTIVE_SCHEDULE";
+  const rateLimited =
+    error instanceof ApiError && error.code === "RATE_LIMITED";
   const requestId = error instanceof ApiError ? error.requestId : null;
   return (
     <div role="alert" className="rounded bg-red-50 px-3 py-3 text-red-800">
       <p className="font-medium">
-        {noSchedule
-          ? "Schedule data is temporarily unavailable"
-          : expected
-            ? "We couldn't run that search"
-            : "Something went wrong"}
+        {rateLimited
+          ? "Too many searches"
+          : noSchedule
+            ? "Schedule data is temporarily unavailable"
+            : expected
+              ? "We couldn't run that search"
+              : "Something went wrong"}
       </p>
       <p className="text-sm">
-        {error instanceof ApiError ? error.message : "A network or server error occurred."}
+        {error instanceof ApiError
+          ? error.message
+          : "A network or server error occurred."}
       </p>
+      {rateLimited && error.retryAfter && (
+        <p className="mt-1 text-sm">
+          Try again in about {error.retryAfter} seconds.
+        </p>
+      )}
       {!expected && requestId && (
         <p className="mt-1 text-xs text-red-600">Reference: {requestId}</p>
       )}
@@ -154,11 +183,17 @@ function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void })
   );
 }
 
-function FreshnessPanel({ data }: { data: import("@/lib/api/client").SearchResponse }) {
+function FreshnessPanel({
+  data,
+}: {
+  data: import("@/lib/api/client").SearchResponse;
+}) {
   const f = data.data_freshness;
   return (
     <details className="rounded border border-slate-200 p-3 text-sm text-slate-600">
-      <summary className="cursor-pointer font-medium text-slate-800">Data freshness</summary>
+      <summary className="cursor-pointer font-medium text-slate-800">
+        Data freshness
+      </summary>
       <ul className="mt-2 space-y-1">
         <li>Schedule source: {f.schedule_source ?? "—"}</li>
         <li>Schedule version: {f.schedule_version ?? "—"}</li>
@@ -175,12 +210,19 @@ function FreshnessPanel({ data }: { data: import("@/lib/api/client").SearchRespo
   );
 }
 
-function Warnings({ warnings }: { warnings: import("@/lib/api/client").ApiWarning[] }) {
+function Warnings({
+  warnings,
+}: {
+  warnings: import("@/lib/api/client").ApiWarning[];
+}) {
   if (warnings.length === 0) return null;
   return (
     <ul className="mt-3 space-y-1">
       {warnings.map((w) => (
-        <li key={w.code} className="rounded bg-amber-50 px-3 py-1 text-sm text-amber-900">
+        <li
+          key={w.code}
+          className="rounded bg-amber-50 px-3 py-1 text-sm text-amber-900"
+        >
           {w.message}
         </li>
       ))}

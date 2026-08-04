@@ -38,6 +38,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/health/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live */
+        get: operations["live_api_v1_health_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ready */
+        get: operations["ready_api_v1_health_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/schedules/status": {
         parameters: {
             query?: never;
@@ -124,7 +158,7 @@ export interface components {
          * @description Stable public error codes (PHASE.md §Public API Error Contract).
          * @enum {string}
          */
-        ApiErrorCode: "INVALID_REQUEST" | "INVALID_AIRPORT" | "INVALID_DEPARTURE_DATE" | "DATE_OUTSIDE_SCHEDULE_RANGE" | "NO_ACTIVE_SCHEDULE" | "INVALID_CONNECTION_RANGE" | "INVALID_TIME_FILTER" | "INVALID_PRICE_FILTER" | "UNSUPPORTED_SORT" | "DATABASE_UNAVAILABLE" | "INTERNAL_ERROR";
+        ApiErrorCode: "INVALID_REQUEST" | "INVALID_AIRPORT" | "INVALID_DEPARTURE_DATE" | "DATE_OUTSIDE_SCHEDULE_RANGE" | "NO_ACTIVE_SCHEDULE" | "INVALID_CONNECTION_RANGE" | "INVALID_TIME_FILTER" | "INVALID_PRICE_FILTER" | "UNSUPPORTED_SORT" | "DATABASE_UNAVAILABLE" | "RATE_LIMITED" | "INTERNAL_ERROR";
         /**
          * ApiErrorResponse
          * @description The single error envelope for all non-2xx API responses.
@@ -406,6 +440,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorResponse"];
                 };
             };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
             /** @description Internal error */
             500: {
                 headers: {
@@ -442,8 +485,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    live_api_v1_health_live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    ready_api_v1_health_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -468,6 +553,15 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -519,6 +613,15 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1695,13 +1695,17 @@ At minimum, Phase 5 must provide working commands equivalent to:
 ```bash
 # Install
 pnpm install --frozen-lockfile
-<locked Python dependency installation command>
+cd apps/api && python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.lock && pip install -e . --no-deps
+cd ../..
 
 # Infrastructure
-docker compose config --quiet
-docker compose up -d --wait
-alembic upgrade head
-<synthetic fixture import command>
+docker compose -f infrastructure/docker-compose.yml config --quiet
+docker compose -f infrastructure/docker-compose.yml up -d --wait postgres redis
+docker compose -f infrastructure/docker-compose.yml run --rm api alembic upgrade head
+docker compose -f infrastructure/docker-compose.yml run --rm api python -m app.cli airport-seed data/fixtures/sample_airports.csv
+docker compose -f infrastructure/docker-compose.yml run --rm api python -m app.cli schedule-import data/fixtures/sample_schedule.csv
+docker compose -f infrastructure/docker-compose.yml up -d --wait api web
 
 # Static verification
 make format-check
@@ -1709,44 +1713,51 @@ make lint
 make typecheck
 
 # Backend tests
-<backend unit-test command>
-<backend integration-test command>
-<cache test command>
-<rate-limit test command>
-<monitoring test command>
-<timezone and edge-case test command>
+cd apps/api && source .venv/bin/activate && pytest tests/ -v
+DATABASE_URL_TEST=postgresql+psycopg://gowild:gowild@localhost:5432/gowild pytest tests/test_routing_integration.py tests/test_api_search_integration.py -v
+pytest tests/test_api_caching.py tests/test_cache_and_rate_limit.py -v
+pytest tests/test_operations_api.py -v
+pytest tests/test_observability.py -v
+pytest tests/test_flight_instance.py tests/test_routing_domain.py tests/test_routing_engine_regressions.py tests/test_routing_properties.py -v
+cd ../..
 
 # Frontend tests
-pnpm --filter web test
-pnpm --filter web typecheck
-pnpm --filter web lint
-pnpm --filter web build
+pnpm --dir apps/web test
+pnpm --dir apps/web type-check
+pnpm --dir apps/web lint
+pnpm --dir apps/web build
 
 # Contract and security
-<OpenAPI generation command>
-<generated API type check>
-<secret scan command>
-<Python dependency audit command>
-<Node dependency audit command>
-<container scan command>
+make openapi && git diff --exit-code apps/api/openapi.json
+pnpm --dir apps/web check:types
+trufflehog filesystem . --results=verified,unknown
+cd apps/api && pip-audit -r requirements.lock --no-deps --disable-pip && bandit -q -r app && cd ../..
+pnpm audit --audit-level high
+docker build -t gowild-api:phase5 apps/api && trivy image --exit-code 1 --severity CRITICAL,HIGH gowild-api:phase5
+docker build -t gowild-web:phase5 -f apps/web/Dockerfile . && trivy image --exit-code 1 --severity CRITICAL,HIGH gowild-web:phase5
 
 # End-to-end
-pnpm --filter web test:e2e
+pnpm --dir apps/web test:e2e
+pnpm --dir apps/web test:e2e:fullstack
 
 # Accessibility
-<accessibility test command>
+pnpm --dir apps/web test:e2e --grep accessibility
 
 # Performance
-<lightweight benchmark command>
-<staging load-test command>
+make load-smoke
+make load-baseline
 
 # Failure-mode validation
-<Redis outage test>
-<database readiness test>
-<rate-limit test>
+docker compose -f infrastructure/docker-compose.yml stop redis
+curl --fail-with-body -H 'Content-Type: application/json' -d '{"origin":"ATL","departure_date":"2026-08-04","max_connections":0}' http://localhost:8000/api/v1/search
+curl --fail-with-body http://localhost:8000/api/v1/health/ready
+docker compose -f infrastructure/docker-compose.yml start redis
+cd apps/api && source .venv/bin/activate && pytest tests/test_operations_api.py -k 'readiness or rate_limit' -v && cd ../..
 
 # CI parity
-<the exact commands invoked by remote CI>
+make format-check lint typecheck test-ops
+pnpm --dir apps/web check:types && pnpm --dir apps/web test && pnpm --dir apps/web build
+docker compose -f infrastructure/docker-compose.yml config --quiet
 ```
 
 No placeholder may remain in this section when Phase 5 is marked complete.

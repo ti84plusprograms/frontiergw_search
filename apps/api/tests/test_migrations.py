@@ -18,3 +18,9 @@ def test_phase_2_migrations_generate_safe_postgres_upgrade_sql(capsys):
     assert "ALTER TABLE data_sources RENAME provider_metadata TO metadata" in sql
     assert "uq_data_sources_one_active" in sql
     assert "routes_operating_days_valid" in sql
+
+
+def test_alembic_console_entrypoint_adds_project_root_to_import_path():
+    api_root = Path(__file__).parent.parent
+    config = Config(str(api_root / "alembic.ini"))
+    assert config.get_main_option("prepend_sys_path") == "."

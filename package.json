@@ -7,5 +7,11 @@
     "build:web": "pnpm --filter web build",
     "lint:web": "pnpm --filter web lint",
     "test:web": "pnpm --filter web test"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": ">=8.5.18",
+      "sharp": ">=0.35.0"
+    }
   }
 }

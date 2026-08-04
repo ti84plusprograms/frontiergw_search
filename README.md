@@ -30,7 +30,8 @@ Services will be available at:
 cd apps/api
 python -m venv .venv
 source .venv/bin/activate  # or `venv\Scripts\activate` on Windows
-pip install -e ".[dev]"
+pip install -r requirements-dev.lock
+pip install -e . --no-deps
 
 # Start services first (Postgres + Redis locally or Docker)
 export DATABASE_URL="postgresql+psycopg://gowild:gowild@localhost:5432/gowild"
@@ -57,8 +58,9 @@ cd apps/api
 python -m venv .venv
 source .venv/bin/activate
 
-# Install dependencies
-pip install -e ".[dev]"
+# Install locked dependencies
+pip install -r requirements-dev.lock
+pip install -e . --no-deps
 
 # Format & lint
 ruff format .
@@ -145,6 +147,9 @@ pnpm test
 pnpm exec playwright install chromium
 pnpm test:e2e
 
+# Full-stack browser tests (requires the seeded Docker stack)
+pnpm test:e2e:fullstack
+
 # Verify generated API types are current
 pnpm check:types
 
@@ -184,6 +189,12 @@ docs/            PRD, TDD, and other docs
 - [Technical Design Document](docs/TDD.md)
 - [Architecture Decisions](DECISIONS.md)
 - [Implementation Tasks](TASKS.md)
+- [Operations Runbook](docs/RUNBOOK.md)
+- [Caching](docs/CACHING.md)
+- [Monitoring](docs/MONITORING.md)
+- [Incident Response](docs/INCIDENT_RESPONSE.md)
+- [Release Checklist](docs/RELEASE_CHECKLIST.md)
+- [Performance Baseline](docs/PERFORMANCE_BASELINE.md)
 
 ## Development Workflow
 

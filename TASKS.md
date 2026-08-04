@@ -60,12 +60,12 @@
 
 | ID | Task | Owner | Status | Dependencies |
 |---|---|---|---|---|
-| OPS-001 | Add caching | Unassigned | NOT STARTED | API-002 |
-| OPS-002 | Add structured logging | Unassigned | NOT STARTED | API-002 |
-| OPS-003 | Add rate limiting | Unassigned | NOT STARTED | API-002 |
-| OPS-004 | Add monitoring and error reporting | Unassigned | NOT STARTED | OPS-002 |
-| QA-001 | Add end-to-end tests | Unassigned | NOT STARTED | WEB-004 |
-| QA-002 | Add routing and API performance tests | Unassigned | NOT STARTED | RTE-006 |
-| QA-003 | Add timezone edge-case suite | Unassigned | NOT STARTED | RTE-004 |
+| OPS-001 | Add caching | Codex | IN REVIEW | API-002 |
+| OPS-002 | Add structured logging | Codex | IN REVIEW | API-002 |
+| OPS-003 | Add rate limiting | Codex | IN REVIEW | API-002 |
+| OPS-004 | Add monitoring and error reporting | Codex | IN REVIEW | OPS-002 |
+| QA-001 | Add end-to-end tests | Codex | IN REVIEW | WEB-004 |
+| QA-002 | Add routing and API performance tests | Codex | IN REVIEW | RTE-006 |
+| QA-003 | Add timezone edge-case suite | Codex | IN REVIEW | RTE-004 |
 
 Agents should update statuses, but they must not delete incomplete tasks.

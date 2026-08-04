@@ -1,11 +1,14 @@
 import type { components } from "@/lib/api/types";
+import * as Sentry from "@sentry/nextjs";
 
 export type AirportItem = components["schemas"]["AirportItem"];
-export type AirportSearchResponse = components["schemas"]["AirportSearchResponse"];
+export type AirportSearchResponse =
+  components["schemas"]["AirportSearchResponse"];
 export type SearchRequest = components["schemas"]["SearchRequest"];
 export type SearchResponse = components["schemas"]["SearchResponse"];
 export type ItineraryModel = components["schemas"]["ItineraryModel"];
-export type ScheduleStatusResponse = components["schemas"]["ScheduleStatusResponse"];
+export type ScheduleStatusResponse =
+  components["schemas"]["ScheduleStatusResponse"];
 export type ApiErrorResponse = components["schemas"]["ApiErrorResponse"];
 export type ApiWarning = components["schemas"]["ApiWarning"];
 
@@ -18,8 +21,14 @@ export class ApiError extends Error {
   readonly status: number;
   readonly requestId: string | null;
   readonly details: unknown;
+  readonly retryAfter: number | null;
 
-  constructor(status: number, body: ApiErrorResponse | null, fallback: string) {
+  constructor(
+    status: number,
+    body: ApiErrorResponse | null,
+    fallback: string,
+    retryAfter?: string | null,
+  ) {
     const err = body?.error;
     super(err?.message ?? fallback);
     this.name = "ApiError";
@@ -27,11 +36,18 @@ export class ApiError extends Error {
     this.status = status;
     this.requestId = err?.request_id ?? null;
     this.details = err?.details ?? null;
+    const parsedRetry = retryAfter
+      ? Number.parseInt(retryAfter, 10)
+      : Number.NaN;
+    this.retryAfter = Number.isFinite(parsedRetry) ? parsedRetry : null;
   }
 
   /** Expected (client-actionable) errors render differently from unexpected failures. */
   get isExpected(): boolean {
-    return (this.status >= 400 && this.status < 500) || this.code === "NO_ACTIVE_SCHEDULE";
+    return (
+      (this.status >= 400 && this.status < 500) ||
+      this.code === "NO_ACTIVE_SCHEDULE"
+    );
   }
 }
 
@@ -42,7 +58,18 @@ async function parseError(res: Response): Promise<ApiError> {
   } catch {
     body = null;
   }
-  return new ApiError(res.status, body, `Request failed with status ${res.status}`);
+  const error = new ApiError(
+    res.status,
+    body,
+    `Request failed with status ${res.status}`,
+    res.headers.get("Retry-After"),
+  );
+  if (res.status >= 500) {
+    Sentry.captureException(error, {
+      tags: { request_id: error.requestId ?? "unknown" },
+    });
+  }
+  return error;
 }
 
 export async function searchAirports(
@@ -51,10 +78,13 @@ export async function searchAirports(
   signal?: AbortSignal,
 ): Promise<AirportSearchResponse> {
   const params = new URLSearchParams({ query, limit: String(limit) });
-  const res = await fetch(`${API_BASE_URL}/api/v1/airports?${params.toString()}`, {
-    signal,
-    headers: { Accept: "application/json" },
-  });
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/airports?${params.toString()}`,
+    {
+      signal,
+      headers: { Accept: "application/json" },
+    },
+  );
   if (!res.ok) throw await parseError(res);
   return (await res.json()) as AirportSearchResponse;
 }

@@ -1,4 +1,4 @@
-.PHONY: help install dev test openapi lint lint-fix format-check typecheck build clean docker-up docker-down
+.PHONY: help install dev test test-ops test-e2e-fullstack load-smoke load-baseline openapi lint lint-fix format-check typecheck build clean docker-up docker-down
 
 help:
 	@echo "Frontier GoWild Destination Explorer"
@@ -19,7 +19,7 @@ help:
 
 install:
 	@echo "Installing Python backend..."
-	cd apps/api && python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
+	cd apps/api && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.lock && pip install -e . --no-deps
 	@echo "Installing Node frontend..."
 	pnpm install
 
@@ -30,6 +30,18 @@ dev:
 test:
 	@echo "Running backend tests..."
 	cd apps/api && source .venv/bin/activate && pytest tests/ -v
+
+test-ops:
+	cd apps/api && source .venv/bin/activate && pytest tests/test_api_caching.py tests/test_cache_and_rate_limit.py tests/test_operations_api.py tests/test_observability.py -v
+
+test-e2e-fullstack:
+	cd apps/web && pnpm test:e2e:fullstack
+
+load-smoke:
+	cd apps/api && source .venv/bin/activate && locust -f locustfile.py --headless -u 2 -r 2 -t 10s --host http://localhost:8000 --only-summary
+
+load-baseline:
+	cd apps/api && source .venv/bin/activate && locust -f locustfile.py --headless -u 20 -r 5 -t 2m --host http://localhost:8000 --csv ../../docs/performance-latest
 
 openapi:
 	@echo "Exporting OpenAPI schema to apps/api/openapi.json..."
